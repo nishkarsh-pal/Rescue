@@ -1,0 +1,26 @@
+# Default owner. Replace component entries with real GitHub users or teams,
+# such as @your-org/apex-team, as ownership responsibilities are assigned.
+* @nishkarsh-pal
+
+# Apex
+/force-app/main/default/classes/ @nishkarsh-pal
+/force-app/main/default/triggers/ @nishkarsh-pal
+
+# Lightning UI and automation
+/force-app/main/default/lwc/ @nishkarsh-pal
+/force-app/main/default/aura/ @nishkarsh-pal
+/force-app/main/default/flows/ @nishkarsh-pal
+/force-app/main/default/flexipages/ @nishkarsh-pal
+
+# Data model and access control
+/force-app/main/default/objects/ @nishkarsh-pal
+/force-app/main/default/permissionsets/ @nishkarsh-pal
+/force-app/main/default/customMetadata/ @nishkarsh-pal
+
+# Agentforce and AI metadata
+/force-app/main/default/aiAuthoringBundles/ @nishkarsh-pal
+
+# Project and collaboration configuration
+/.github/ @nishkarsh-pal
+/manifest/ @nishkarsh-pal
+/sfdx-project.json @nishkarsh-pal
