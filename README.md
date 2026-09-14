@@ -1,9 +1,6 @@
 # Rescue
 
-Rescue is a Salesforce DX project containing Apex, Lightning components, custom
-objects, layouts, applications, tabs, permissions, and Agentforce metadata. The
-repository uses feature branches and pull requests so developers can work in
-separate Salesforce orgs while sharing one reviewed source of truth.
+Rescue is a Salesforce DX project based on Disaster Management.
 
 ## Prerequisites
 
@@ -59,34 +56,6 @@ sf org login web --instance-url https://test.salesforce.com --alias YourSandbox
 
 Org authentication is stored outside this repository and must never be shared
 or committed.
-
-## Repository Structure
-
-```text
-force-app/main/default/
-  aiAuthoringBundles/  Agentforce authoring bundles
-  applications/        Lightning applications
-  aura/                Aura components
-  classes/             Apex classes and tests
-  flexipages/           Lightning pages
-  layouts/              Page layouts
-  lwc/                  Lightning Web Components
-  objects/              Standard and custom object metadata
-  permissionsets/       Permission sets
-  tabs/                 Custom tabs
-  triggers/             Apex triggers
-  flows/                Created when Flow metadata is added
-  customMetadata/       Created when custom metadata records are added
-manifest/package.xml    Metadata retrieval manifest
-config/                 Scratch org definition
-scripts/                Apex and SOQL utility scripts
-.github/                CODEOWNERS and pull request template
-sfdx-project.json       Salesforce DX project configuration
-```
-
-Salesforce metadata directories are created when their first component is
-retrieved or added. Placeholder files are intentionally not stored inside the
-package directory because they are not Salesforce metadata.
 
 ## Branching Strategy
 
@@ -204,35 +173,6 @@ Reviewers verify Apex bulkification, no SOQL or DML in loops, exception handling
 meaningful names, focused changes, tests, metadata dependencies, permission
 updates, CRUD/FLS handling, and the absence of credentials or accidental metadata.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the complete review process.
-
-## Metadata Conflict Management
-
-Flows, Profiles, Permission Sets, object definitions, layouts, and shared custom
-metadata records are the highest-conflict files because many Setup changes modify
-large shared XML documents.
-
-- Do not have multiple developers edit the same Flow version simultaneously.
-- Prefer Permission Sets over Profiles whenever possible.
-- Assign owners for shared Flows, objects, layouts, and access metadata.
-- Communicate before changing shared metadata.
-- Keep pull requests small and omit unrelated retrieve changes.
-- Synchronize from `develop` frequently and resolve conflicts before final review.
-- Understand both XML changes; never choose one entire conflict side blindly.
-
-Apex classes, triggers, and LWCs merge more predictably, but conflicts remain
-likely when developers edit the same method, handler, template, or stylesheet.
-
-## Repository Security
-
-Protect `main` and `develop` with pull request approvals, CODEOWNERS, resolved
-review conversations, and disabled force pushes. Keep secrets in approved local
-or organization secret-management tools, not source code or metadata. Inspect
-staged content before every commit with `git diff --cached`.
-
-The `.gitignore` excludes Salesforce CLI state, dependencies, environment files,
-logs, and operating-system artifacts without ignoring Salesforce metadata.
-GitHub Rulesets require manual repository configuration; see
-[CONTRIBUTING.md](CONTRIBUTING.md#github-rulesets).
 
 ## Troubleshooting
 
