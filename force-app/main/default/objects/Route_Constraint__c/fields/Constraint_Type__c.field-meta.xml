@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Constraint_Type__c</fullName>
+    <label>Constraint Type</label>
+    <required>false</required>
+    <trackFeedHistory>false</trackFeedHistory>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Road Blocked</fullName>
+                <default>true</default>
+                <label>Road Blocked</label>
+            </value>
+            <value>
+                <fullName>Weather Risk</fullName>
+                <default>false</default>
+                <label>Weather Risk</label>
+            </value>
+            <value>
+                <fullName>Capacity Limit</fullName>
+                <default>false</default>
+                <label>Capacity Limit</label>
+            </value>
+            <value>
+                <fullName>Security Risk</fullName>
+                <default>false</default>
+                <label>Security Risk</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

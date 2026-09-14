@@ -1,0 +1,142 @@
+<template>
+    <lightning-card title="RESCUE Emergency Command Center" icon-name="utility:warning">
+        <div class="shell">
+            <section class="command-strip">
+                <div>
+                    <p class="eyebrow">Real-time Emergency Supply Coordination and Unified Execution</p>
+                    <h1>Detect, prioritize, allocate, monitor, and re-plan from one Salesforce screen.</h1>
+                </div>
+                <lightning-button label="Seed Demo Data" onclick={handleSeedDemoData}></lightning-button>
+            </section>
+
+            <section class="metrics-grid">
+                <article class="metric critical">
+                    <span>Active Incidents</span>
+                    <strong>{incidentCount}</strong>
+                </article>
+                <article class="metric">
+                    <span>Critical Needs</span>
+                    <strong>{criticalNeedCount}</strong>
+                </article>
+                <article class="metric">
+                    <span>Available Resources</span>
+                    <strong>{availableResourceTotal}</strong>
+                </article>
+                <article class="metric">
+                    <span>AI Decisions</span>
+                    <strong>{decisionCount}</strong>
+                </article>
+            </section>
+
+            <section class="grid two-column">
+                <div class="panel intake-panel">
+                    <h2>Single Instruction Intake</h2>
+                    <lightning-textarea
+                        label="Coordinator instruction"
+                        value={instruction}
+                        onchange={handleInstructionChange}
+                    ></lightning-textarea>
+                    <div class="button-row">
+                        <lightning-button variant="brand" label="Ask RESCUE to Create Plan" onclick={handleCreatePlan} disabled={isBusy}></lightning-button>
+                        <lightning-button label="Refresh" onclick={refresh}></lightning-button>
+                    </div>
+                </div>
+
+                <div class="panel recommendation-panel">
+                    <h2>AI Recommendation</h2>
+                    <template if:true={currentPlan}>
+                        <p class="recommendation-text">{currentPlan.AI_Recommendation__c}</p>
+                        <div class="badge-row">
+                            <span class="badge">Confidence {currentPlan.Confidence__c}%</span>
+                            <span class="badge risk">Risk {currentPlan.Risk_Score__c}%</span>
+                            <span class="badge">{currentPlan.Approval_Status__c}</span>
+                        </div>
+                        <lightning-button variant="brand" label="Approve Response Plan" data-id={currentPlan.Id} onclick={handleApprovePlan} disabled={isBusy}></lightning-button>
+                    </template>
+                    <template if:false={currentPlan}>
+                        <p class="muted">Create or seed a response plan to see Agentforce recommendations.</p>
+                    </template>
+                </div>
+            </section>
+
+            <section class="grid two-column">
+                <div class="panel">
+                    <h2>What-If Simulator</h2>
+                    <lightning-textarea
+                        label="Scenario change"
+                        value={whatIfScenario}
+                        onchange={handleWhatIfChange}
+                    ></lightning-textarea>
+                    <lightning-button variant="neutral" label="Simulate Reallocation" onclick={handleWhatIf} disabled={disableWhatIf}></lightning-button>
+                    <template if:true={whatIfResult}>
+                        <div class="simulation-result">
+                            <strong>{whatIfResult.summary}</strong>
+                            <p>{whatIfResult.recommendation}</p>
+                            <p>{whatIfResult.reason}</p>
+                            <div class="badge-row">
+                                <span class="badge">Current {whatIfResult.currentCoverage}%</span>
+                                <span class="badge success">Proposed {whatIfResult.proposedCoverage}%</span>
+                                <span class="badge success">+{whatIfResult.improvement}%</span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="panel">
+                    <h2>AI Command Center</h2>
+                    <template for:each={evaluations} for:item="evaluation">
+                        <div key={evaluation.Id} class="ai-row">
+                            <span>{evaluation.Agent__c}</span>
+                            <strong>{evaluation.Confidence__c}%</strong>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+            <section class="grid three-column">
+                <div class="panel">
+                    <h2>Active Incidents</h2>
+                    <template for:each={incidents} for:item="incident">
+                        <div key={incident.Id} class="record-row">
+                            <strong>{incident.Name}</strong>
+                            <span>{incident.Severity__c} - {incident.Location__c}</span>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="panel">
+                    <h2>Response Plans</h2>
+                    <template for:each={plans} for:item="plan">
+                        <div key={plan.Id} class="record-row">
+                            <strong>{plan.Name}</strong>
+                            <span>{plan.Approval_Status__c} - Coverage {plan.Estimated_Coverage__c}%</span>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="panel">
+                    <h2>Shipments</h2>
+                    <template for:each={shipments} for:item="shipment">
+                        <div key={shipment.Id} class="record-row">
+                            <strong>{shipment.Name}</strong>
+                            <span>{shipment.Status__c} - ETA {shipment.ETA__c}</span>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+            <section class="panel">
+                <h2>AI Decision Audit Trail</h2>
+                <template for:each={decisions} for:item="decision">
+                    <div key={decision.Id} class="decision-row">
+                        <div>
+                            <strong>{decision.Agent__c}</strong>
+                            <p>{decision.Decision__c}</p>
+                        </div>
+                        <span class="badge">{decision.Risk__c} / {decision.Confidence__c}%</span>
+                    </div>
+                </template>
+            </section>
+        </div>
+    </lightning-card>
+</template>

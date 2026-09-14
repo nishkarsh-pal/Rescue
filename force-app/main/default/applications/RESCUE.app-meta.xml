@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomApplication xmlns="http://soap.sforce.com/2006/04/metadata">
+    <brand>
+        <headerColor>#B42318</headerColor>
+        <shouldOverrideOrgTheme>false</shouldOverrideOrgTheme>
+    </brand>
+    <description>Real-time Emergency Supply Coordination and Unified Execution.</description>
+    <formFactors>Small</formFactors>
+    <formFactors>Large</formFactors>
+    <isNavAutoTempTabsDisabled>false</isNavAutoTempTabsDisabled>
+    <isNavPersonalizationDisabled>false</isNavPersonalizationDisabled>
+    <isNavTabPersistenceDisabled>false</isNavTabPersistenceDisabled>
+    <isOmniPinnedViewEnabled>false</isOmniPinnedViewEnabled>
+    <label>RESCUE</label>
+    <navType>Standard</navType>
+    <setupExperience>all</setupExperience>
+    <tabs>standard-home</tabs>
+    <tabs>RESCUE_Command_Center</tabs>
+    <tabs>Emergency_Incident__c</tabs>
+    <tabs>Resource_Request__c</tabs>
+    <tabs>Relief_Resource__c</tabs>
+    <tabs>Warehouse__c</tabs>
+    <tabs>Response_Plan__c</tabs>
+    <tabs>Allocation__c</tabs>
+    <tabs>Shipment__c</tabs>
+    <tabs>AI_Decision__c</tabs>
+    <tabs>AI_Evaluation__c</tabs>
+    <uiType>Lightning</uiType>
+</CustomApplication>
