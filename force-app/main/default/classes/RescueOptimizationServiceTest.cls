@@ -35,7 +35,7 @@ private class RescueOptimizationServiceTest {
             Severity__c = 'Critical',
             Location__c = 'District A',
             Population_Affected__c = 15000,
-            Status__c = 'Planning',
+            Status__c = 'Detected',
             Start_Date__c = System.now(),
             Situation_Summary__c = 'Major flood with urgent drinking water and medical needs.'
         );

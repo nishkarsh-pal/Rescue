@@ -4,6 +4,7 @@ public with sharing class RescueCommandCenterController {
         @AuraEnabled public List<Resource_Request__c> requests;
         @AuraEnabled public List<Relief_Resource__c> resources;
         @AuraEnabled public List<Response_Plan__c> plans;
+        @AuraEnabled public List<Allocation__c> allocations;
         @AuraEnabled public List<Shipment__c> shipments;
         @AuraEnabled public List<AI_Decision__c> decisions;
         @AuraEnabled public List<AI_Evaluation__c> evaluations;
@@ -13,7 +14,8 @@ public with sharing class RescueCommandCenterController {
     public static DashboardData getDashboardData() {
         DashboardData data = new DashboardData();
         data.incidents = [
-            SELECT Id, Name, Severity__c, Location__c, Population_Affected__c, Status__c, Start_Date__c, Situation_Summary__c
+            SELECT Id, Name, Severity__c, Location__c, Country__c, Disaster_Type__c, Source__c, Latitude__c, Longitude__c,
+                   Population_Affected__c, Status__c, Start_Date__c, Detected_Date__c, Situation_Summary__c, Profile_Overview__c
             FROM Emergency_Incident__c
             ORDER BY CreatedDate DESC
             LIMIT 20
@@ -31,10 +33,19 @@ public with sharing class RescueCommandCenterController {
             LIMIT 50
         ];
         data.plans = [
-            SELECT Id, Name, Incident__c, Plan_Version__c, Total_Resources__c, Estimated_Coverage__c, Estimated_ETA_Hours__c, Risk_Score__c, Confidence__c, Approval_Status__c, AI_Recommendation__c
+            SELECT Id, Name, Incident__c, Plan_Version__c, Total_Resources__c, Estimated_Coverage__c, Estimated_ETA_Hours__c, Risk_Score__c, Confidence__c, Approval_Status__c, AI_Recommendation__c, CreatedDate
             FROM Response_Plan__c
             ORDER BY CreatedDate DESC
             LIMIT 20
+        ];
+        data.allocations = [
+            SELECT Id, Incident__c, Response_Plan__c, Resource_Request__c, Resource_Request__r.Resource_Type__c,
+                   Relief_Resource__c, Relief_Resource__r.Name, Relief_Resource__r.Warehouse__c,
+                   Relief_Resource__r.Warehouse__r.Name, Relief_Resource__r.Warehouse__r.Location__c,
+                   Quantity__c, Status__c
+            FROM Allocation__c
+            ORDER BY CreatedDate DESC
+            LIMIT 100
         ];
         data.shipments = [
             SELECT Id, Name, Response_Plan__c, Origin__c, Destination__c, Carrier__c, Route__c, ETA__c, Status__c
@@ -67,7 +78,7 @@ public with sharing class RescueCommandCenterController {
             Severity__c = text.toLowerCase().contains('critical') || text.toLowerCase().contains('major') ? 'Critical' : 'High',
             Location__c = extractLocation(text),
             Population_Affected__c = extractPopulation(text),
-            Status__c = 'Planning',
+            Status__c = 'Detected',
             Start_Date__c = System.now(),
             Situation_Summary__c = text
         );
@@ -114,7 +125,7 @@ public with sharing class RescueCommandCenterController {
         }
     }
 
-    private static void ensureDemoInventory() {
+    public static void ensureDemoInventory() {
         if ([SELECT COUNT() FROM Relief_Resource__c] > 0) {
             return;
         }

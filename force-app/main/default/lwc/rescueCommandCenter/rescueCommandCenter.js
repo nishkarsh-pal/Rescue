@@ -1,11 +1,15 @@
 import { LightningElement, wire } from 'lwc';
 import { refreshApex } from '@salesforce/apex';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { publish, subscribe, unsubscribe, MessageContext } from 'lightning/messageService';
+import RESCUE_INCIDENT_CHANNEL from '@salesforce/messageChannel/RescueIncidentChannel__c';
 import getDashboardData from '@salesforce/apex/RescueCommandCenterController.getDashboardData';
 import createIncidentFromInstruction from '@salesforce/apex/RescueCommandCenterController.createIncidentFromInstruction';
 import approvePlan from '@salesforce/apex/RescueCommandCenterController.approvePlan';
 import runWhatIf from '@salesforce/apex/RescueCommandCenterController.runWhatIf';
 import seedDemoData from '@salesforce/apex/RescueCommandCenterController.seedDemoData';
+
+const SOURCE = 'rescueCommandCenter';
 
 export default class RescueCommandCenter extends LightningElement {
     instruction = 'A major flood has occurred in District A. 15000 people are affected. We need drinking water, food and medical supplies within 6 hours.';
@@ -13,6 +17,7 @@ export default class RescueCommandCenter extends LightningElement {
     whatIfResult;
     isBusy = false;
     wiredDashboard;
+    selectedIncidentId;
     dashboard = {
         incidents: [],
         requests: [],
@@ -23,11 +28,32 @@ export default class RescueCommandCenter extends LightningElement {
         evaluations: []
     };
 
+    subscription;
+    @wire(MessageContext) messageContext;
+
+    connectedCallback() {
+        this.subscription = subscribe(this.messageContext, RESCUE_INCIDENT_CHANNEL, (message) => this.handleIncidentMessage(message));
+    }
+
+    disconnectedCallback() {
+        unsubscribe(this.subscription);
+        this.subscription = null;
+    }
+
+    handleIncidentMessage(message) {
+        if (message.source !== SOURCE) {
+            this.selectedIncidentId = message.incidentId;
+        }
+    }
+
     @wire(getDashboardData)
     wiredData(result) {
         this.wiredDashboard = result;
         if (result.data) {
             this.dashboard = result.data;
+            if (!this.selectedIncidentId && this.dashboard.incidents.length) {
+                this.selectedIncidentId = this.dashboard.incidents[0].Id;
+            }
         } else if (result.error) {
             this.showToast('Unable to load RESCUE data', this.normalizeError(result.error), 'error');
         }
@@ -62,11 +88,25 @@ export default class RescueCommandCenter extends LightningElement {
     }
 
     get currentPlan() {
-        return this.plans.length > 0 ? this.plans[0] : null;
+        const incident = this.currentIncident;
+        if (!incident) {
+            return this.plans.length > 0 ? this.plans[0] : null;
+        }
+        return this.plans.find((plan) => plan.Incident__c === incident.Id) || null;
     }
 
     get currentIncident() {
-        return this.incidents.length > 0 ? this.incidents[0] : null;
+        return this.incidents.find((incident) => incident.Id === this.selectedIncidentId) || (this.incidents.length > 0 ? this.incidents[0] : null);
+    }
+
+    get incidentRows() {
+        return this.incidents.map((incident) => ({
+            id: incident.Id,
+            name: incident.Name,
+            severity: incident.Severity__c,
+            location: incident.Location__c,
+            rowClass: incident.Id === this.selectedIncidentId ? 'record-row selected' : 'record-row'
+        }));
     }
 
     get incidentCount() {
@@ -96,6 +136,16 @@ export default class RescueCommandCenter extends LightningElement {
 
     handleWhatIfChange(event) {
         this.whatIfScenario = event.target.value;
+    }
+
+    handleSelectIncident(event) {
+        const incidentId = event.currentTarget.dataset.id;
+        if (incidentId === this.selectedIncidentId) {
+            return;
+        }
+        this.selectedIncidentId = incidentId;
+        this.whatIfResult = null;
+        publish(this.messageContext, RESCUE_INCIDENT_CHANNEL, { incidentId, source: SOURCE });
     }
 
     async handleSeedDemoData() {

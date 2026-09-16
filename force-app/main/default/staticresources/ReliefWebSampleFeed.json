@@ -1,0 +1,178 @@
+{
+  "took": 24,
+  "timed_out": false,
+  "totalCount": 1845,
+  "count": 10,
+  "data": [
+    {
+      "id": "51482",
+      "type": "disasters",
+      "href": "https://reliefweb.int",
+      "fields": {
+        "id": 51482,
+        "name": "Tropical Cyclone Delta - Oct 2026",
+        "description": "Tropical Cyclone Delta made landfall along the southern coast with sustained winds of 160 km/h, causing widespread flash flooding and infrastructure displacement across primary residential sectors.",
+        "status": "current",
+        "glide": "TC-2026-000142-PHL",
+        "date": { "created": "2026-10-12T08:34:12+00:00", "changed": "2026-10-14T14:22:05+00:00" },
+        "type": [{ "id": 4618, "name": "Tropical Cyclone", "code": "TC", "primary": true }],
+        "country": [{ "id": 188, "name": "Philippines", "code": "PHL", "location": { "lon": 121.77, "lat": 12.87 }, "primary": true }],
+        "primary_country": { "id": 188, "name": "Philippines", "code": "PHL" },
+        "maps": { "png": { "url": "https://reliefweb.int" } }
+      }
+    },
+    {
+      "id": "51483",
+      "type": "disasters",
+      "href": "https://reliefweb.int",
+      "fields": {
+        "id": 51483,
+        "name": "Gaziantep Earthquake - Sep 2026",
+        "description": "A magnitude 6.4 earthquake struck South-Central Türkiye at a shallow depth, resulting in structural collapse in dense metropolitan areas.",
+        "status": "current",
+        "glide": "EQ-2026-000089-TUR",
+        "date": { "created": "2026-09-14T23:11:00+00:00", "changed": "2026-09-15T06:40:00+00:00" },
+        "type": [{ "id": 4611, "name": "Earthquake", "code": "EQ", "primary": true }],
+        "country": [{ "id": 235, "name": "Türkiye", "code": "TUR", "location": { "lon": 35.24, "lat": 38.96 }, "primary": true }],
+        "primary_country": { "id": 235, "name": "Türkiye", "code": "TUR" },
+        "maps": { "png": { "url": "https://reliefweb.int" } }
+      }
+    },
+    {
+      "id": "51484",
+      "type": "disasters",
+      "href": "https://reliefweb.int",
+      "fields": {
+        "id": 51484,
+        "name": "Kenya Flash Floods - May 2026",
+        "description": "Heavy seasonal rainfall amplified by climate anomalies triggered massive river overflows, submerging agrarian terrain and displacing downriver settlements.",
+        "status": "alert",
+        "glide": "FL-2026-000041-KEN",
+        "date": { "created": "2026-05-18T11:04:19+00:00", "changed": "2026-05-22T09:12:44+00:00" },
+        "type": [{ "id": 4614, "name": "Flood", "code": "FL", "primary": true }],
+        "country": [{ "id": 131, "name": "Kenya", "code": "KEN", "location": { "lon": 37.89, "lat": 0.57 }, "primary": true }],
+        "primary_country": { "id": 131, "name": "Kenya", "code": "KEN" },
+        "maps": { "png": { "url": "https://reliefweb.int" } }
+      }
+    },
+    {
+      "id": "51485",
+      "type": "disasters",
+      "href": "https://reliefweb.int",
+      "fields": {
+        "id": 51485,
+        "name": "Mount Marapi Volcanic Eruption - Jun 2026",
+        "description": "Explosive phreatic eruptions projected ash plumes up to 3,000 meters, forcing immediate community evacuations across the exclusion zone perimeter.",
+        "status": "current",
+        "glide": "VO-2026-000062-IDN",
+        "date": { "created": "2026-06-04T05:22:10+00:00", "changed": "2026-06-06T12:00:15+00:00" },
+        "type": [{ "id": 4621, "name": "Volcanic Activity", "code": "VO", "primary": true }],
+        "country": [{ "id": 120, "name": "Indonesia", "code": "IDN", "location": { "lon": 113.92, "lat": -0.78 }, "primary": true }],
+        "primary_country": { "id": 120, "name": "Indonesia", "code": "IDN" },
+        "maps": { "png": { "url": "https://reliefweb.int" } }
+      }
+    },
+    {
+      "id": "51486",
+      "type": "disasters",
+      "href": "https://reliefweb.int",
+      "fields": {
+        "id": 51486,
+        "name": "Somalia Drought - Ongoing 2026",
+        "description": "Consecutive failed rainy seasons have escalated severe acute malnutrition metrics, threatening food systems across rural pastoralist communities.",
+        "status": "current",
+        "glide": "DR-2026-000003-SOM",
+        "date": { "created": "2026-01-10T09:00:00+00:00", "changed": "2026-09-01T15:30:22+00:00" },
+        "type": [{ "id": 4610, "name": "Drought", "code": "DR", "primary": true }],
+        "country": [{ "id": 216, "name": "Somalia", "code": "SOM", "location": { "lon": 46.20, "lat": 5.15 }, "primary": true }],
+        "primary_country": { "id": 216, "name": "Somalia", "code": "SOM" },
+        "maps": { "png": { "url": "https://reliefweb.int" } }
+      }
+    },
+    {
+      "id": "51487",
+      "type": "disasters",
+      "href": "https://reliefweb.int",
+      "fields": {
+        "id": 51487,
+        "name": "Chile Wildfires - Feb 2026",
+        "description": "High temperatures paired with intense wind currents fueled dynamic forest fires encroaching on populated municipal boundaries in Valparaíso.",
+        "status": "past",
+        "glide": "WF-2026-000012-CHL",
+        "date": { "created": "2026-02-04T18:40:00+00:00", "changed": "2026-03-01T10:15:00+00:00" },
+        "type": [{ "id": 4622, "name": "Wildfire", "code": "WF", "primary": true }],
+        "country": [{ "id": 57, "name": "Chile", "code": "CHL", "location": { "lon": -71.54, "lat": -35.67 }, "primary": true }],
+        "primary_country": { "id": 57, "name": "Chile", "code": "CHL" },
+        "maps": { "png": { "url": "https://reliefweb.int" } }
+      }
+    },
+    {
+      "id": "51488",
+      "type": "disasters",
+      "href": "https://reliefweb.int",
+      "fields": {
+        "id": 51488,
+        "name": "Bangladesh Monsoon Floods - Jul 2026",
+        "description": "Surging water volumes across the Jamuna and Padma rivers breached critical flood walls, marooning low-lying administrative districts.",
+        "status": "current",
+        "glide": "FL-2026-000078-BGD",
+        "date": { "created": "2026-07-20T04:12:30+00:00", "changed": "2026-07-25T17:44:02+00:00" },
+        "type": [{ "id": 4614, "name": "Flood", "code": "FL", "primary": true }],
+        "country": [{ "id": 30, "name": "Bangladesh", "code": "BGD", "location": { "lon": 90.35, "lat": 23.68 }, "primary": true }],
+        "primary_country": { "id": 30, "name": "Bangladesh", "code": "BGD" },
+        "maps": { "png": { "url": "https://reliefweb.int" } }
+      }
+    },
+    {
+      "id": "51489",
+      "type": "disasters",
+      "href": "https://reliefweb.int",
+      "fields": {
+        "id": 51489,
+        "name": "Guatemala Landslide - Aug 2026",
+        "description": "Saturated soil layers following prolonged tropical storms caused a catastrophic hillside collapse, blocking principal transit routes and impacting structures.",
+        "status": "current",
+        "glide": "LS-2026-000094-GTM",
+        "date": { "created": "2026-08-11T13:20:00+00:00", "changed": "2026-08-12T16:10:55+00:00" },
+        "type": [{ "id": 4615, "name": "Landslide", "code": "LS", "primary": true }],
+        "country": [{ "id": 107, "name": "Guatemala", "code": "GTM", "location": { "lon": -90.23, "lat": 15.78 }, "primary": true }],
+        "primary_country": { "id": 107, "name": "Guatemala", "code": "GTM" },
+        "maps": { "png": { "url": "https://reliefweb.int" } }
+      }
+    },
+    {
+      "id": "51490",
+      "type": "disasters",
+      "href": "https://reliefweb.int",
+      "fields": {
+        "id": 51490,
+        "name": "Madagascar Tropical Storm Eli - Jan 2026",
+        "description": "Severe Tropical Storm Eli tracking westward made severe impact across eastern shorelines, generating intense localized downpours and structural stress.",
+        "status": "past",
+        "glide": "TC-2026-000001-MDG",
+        "date": { "created": "2026-01-03T06:55:00+00:00", "changed": "2026-01-15T11:30:00+00:00" },
+        "type": [{ "id": 4618, "name": "Tropical Cyclone", "code": "TC", "primary": true }],
+        "country": [{ "id": 145, "name": "Madagascar", "code": "MDG", "location": { "lon": 46.86, "lat": -18.76 }, "primary": true }],
+        "primary_country": { "id": 145, "name": "Madagascar", "code": "MDG" },
+        "maps": { "png": { "url": "https://reliefweb.int" } }
+      }
+    },
+    {
+      "id": "51491",
+      "type": "disasters",
+      "href": "https://reliefweb.int",
+      "fields": {
+        "id": 51491,
+        "name": "Papua New Guinea Earthquake - Sep 2026",
+        "description": "A deep magnitude 6.8 seismic event off the coast caused localized tremors across remote Highland provinces, initiating rapid community threat verification.",
+        "status": "current",
+        "glide": "EQ-2026-000091-PNG",
+        "date": { "created": "2026-09-15T02:10:00+00:00", "changed": "2026-09-15T18:22:00+00:00" },
+        "type": [{ "id": 4611, "name": "Earthquake", "code": "EQ", "primary": true }],
+        "country": [{ "id": 202, "name": "Papua New Guinea", "code": "PNG", "location": { "lon": 143.96, "lat": -6.31 }, "primary": true }],
+        "primary_country": { "id": 202, "name": "Papua New Guinea", "code": "PNG" },
+        "maps": { "png": { "url": "https://reliefweb.int" } }
+      }
+    }
+  ]
+}

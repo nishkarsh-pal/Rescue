@@ -21,6 +21,16 @@
                 <label>Approved</label>
             </value>
             <value>
+                <fullName>Allocated</fullName>
+                <default>false</default>
+                <label>Allocated</label>
+            </value>
+            <value>
+                <fullName>In Transit</fullName>
+                <default>false</default>
+                <label>In Transit</label>
+            </value>
+            <value>
                 <fullName>Executing</fullName>
                 <default>false</default>
                 <label>Executing</label>

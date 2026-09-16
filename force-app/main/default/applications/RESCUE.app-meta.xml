@@ -15,7 +15,9 @@
     <navType>Standard</navType>
     <setupExperience>all</setupExperience>
     <tabs>standard-home</tabs>
+    <tabs>RESCUE_Disaster_Dashboard</tabs>
     <tabs>RESCUE_Command_Center</tabs>
+    <tabs>RESCUE_Incident_Feed</tabs>
     <tabs>Emergency_Incident__c</tabs>
     <tabs>Resource_Request__c</tabs>
     <tabs>Relief_Resource__c</tabs>

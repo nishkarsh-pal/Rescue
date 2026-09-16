@@ -1,0 +1,134 @@
+<template>
+    <div class="feed-container">
+        <div class="command-strip">
+            <div>
+                <h1 class="title">Disaster Incident Feed</h1>
+                <p class="subtitle">Detect → Understand → Prioritize → Simulate → Recommend → Human Approve → Allocate → Execute → Monitor → Re-plan</p>
+            </div>
+            <lightning-button
+                variant="brand"
+                label="Import ReliefWeb Feed"
+                onclick={handleImportSampleFeed}
+                disabled={isLoading}
+            ></lightning-button>
+        </div>
+
+        <template if:true={isLoading}>
+            <lightning-spinner alternative-text="Working" size="small"></lightning-spinner>
+        </template>
+
+        <template if:true={errorMessage}>
+            <div class="error-banner">{errorMessage}</div>
+        </template>
+
+        <div class="body-grid">
+            <div class="incident-list">
+                <template if:false={hasIncidents}>
+                    <p class="empty-state">No incidents yet. Click "Import ReliefWeb Feed" to pull the latest disasters.</p>
+                </template>
+                <template for:each={incidentRows} for:item="row">
+                    <div key={row.id} class={row.rowClass} data-id={row.id} onclick={handleSelectIncident}>
+                        <div class="incident-row-header">
+                            <span class="incident-name">{row.name}</span>
+                            <span class={row.severityClass}>{row.severity}</span>
+                        </div>
+                        <div class="incident-row-meta">
+                            <span>{row.disasterType}</span>
+                            <span>{row.location}</span>
+                        </div>
+                        <div class="incident-row-status">{row.status}</div>
+                    </div>
+                </template>
+            </div>
+
+            <div class="incident-detail">
+                <template if:true={hasSelection}>
+                    <div class="detail-header">
+                        <h2>{selectedIncident.Name}</h2>
+                        <span class="source-tag">{selectedIncident.Source__c}</span>
+                    </div>
+
+                    <div class="stage-tracker">
+                        <template for:each={stageSteps} for:item="step">
+                            <span key={step.key} class={step.stepClass}>{step.label}</span>
+                        </template>
+                    </div>
+
+                    <template if:true={hasMapMarkers}>
+                        <lightning-map
+                            class="map-frame"
+                            map-markers={mapMarkers}
+                            selected-marker-value={selectedIncidentId}
+                            zoom-level="6"
+                            list-view="hidden"
+                        ></lightning-map>
+                    </template>
+
+                    <div class="detail-section">
+                        <h3>Description</h3>
+                        <p>{selectedIncident.Situation_Summary__c}</p>
+                    </div>
+
+                    <div class="detail-section">
+                        <h3>Profile Overview (sent to RESCUE Coordinator Agent)</h3>
+                        <p>{selectedIncident.Profile_Overview__c}</p>
+                    </div>
+
+                    <template if:true={selectedPlan}>
+                        <div class="detail-section plan-panel">
+                            <h3>AI Recommendation — v{selectedPlan.Plan_Version__c}</h3>
+                            <p>{selectedPlan.AI_Recommendation__c}</p>
+                            <div class="plan-meta">
+                                <span>Coverage: {selectedPlan.Estimated_Coverage__c}%</span>
+                                <span>Confidence: {selectedPlan.Confidence__c}%</span>
+                                <span>{planRiskLabel}</span>
+                                <span>Status: {selectedPlan.Approval_Status__c}</span>
+                            </div>
+                        </div>
+                    </template>
+
+                    <div class="action-row">
+                        <template if:true={canProcessWithAi}>
+                            <lightning-button
+                                variant="brand"
+                                label="Send to RESCUE Agent"
+                                onclick={handleProcessWithAi}
+                                disabled={isLoading}
+                            ></lightning-button>
+                        </template>
+                        <template if:true={canApprove}>
+                            <lightning-button
+                                variant="success"
+                                label="Human Approve & Allocate"
+                                onclick={handleApprove}
+                                disabled={isLoading}
+                            ></lightning-button>
+                        </template>
+                    </div>
+
+                    <div class="detail-section agent-console">
+                        <h3>Ask RESCUE Coordinator Agent about this incident</h3>
+                        <div class="agent-chat">
+                            <template for:each={chatMessages} for:item="message">
+                                <div key={message.id} class={message.from}>{message.text}</div>
+                            </template>
+                        </div>
+                        <div class="agent-ask">
+                            <lightning-input
+                                label="Ask"
+                                variant="label-hidden"
+                                placeholder="e.g. approve this plan, or what if the road is blocked?"
+                                value={askText}
+                                onchange={handleAskChange}
+                            ></lightning-input>
+                            <lightning-button-icon icon-name="utility:send" onclick={handleAsk}></lightning-button-icon>
+                        </div>
+                    </div>
+                </template>
+                <template if:false={hasSelection}>
+                    <p class="empty-state">Select an incident to view details.</p>
+                </template>
+            </div>
+        </div>
+    </div>
+</template>

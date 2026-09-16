@@ -16,14 +16,34 @@
                 <label>Detected</label>
             </value>
             <value>
-                <fullName>Assessing</fullName>
+                <fullName>Understanding</fullName>
                 <default>false</default>
-                <label>Assessing</label>
+                <label>Understanding</label>
             </value>
             <value>
-                <fullName>Planning</fullName>
+                <fullName>Prioritized</fullName>
                 <default>false</default>
-                <label>Planning</label>
+                <label>Prioritized</label>
+            </value>
+            <value>
+                <fullName>Simulating</fullName>
+                <default>false</default>
+                <label>Simulating</label>
+            </value>
+            <value>
+                <fullName>Recommended</fullName>
+                <default>false</default>
+                <label>Recommended</label>
+            </value>
+            <value>
+                <fullName>Pending Approval</fullName>
+                <default>false</default>
+                <label>Pending Approval</label>
+            </value>
+            <value>
+                <fullName>Allocating</fullName>
+                <default>false</default>
+                <label>Allocating</label>
             </value>
             <value>
                 <fullName>Executing</fullName>
@@ -34,6 +54,11 @@
                 <fullName>Monitoring</fullName>
                 <default>false</default>
                 <label>Monitoring</label>
+            </value>
+            <value>
+                <fullName>Replanning</fullName>
+                <default>false</default>
+                <label>Replanning</label>
             </value>
             <value>
                 <fullName>Resolved</fullName>
