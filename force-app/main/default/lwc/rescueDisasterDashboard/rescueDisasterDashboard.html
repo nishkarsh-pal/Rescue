@@ -56,18 +56,59 @@
             </div>
 
             <div class="card map-card">
-                <h2 class="card-title">Incident & Resource Center Map</h2>
-                <template if:true={hasMapMarkers}>
-                    <lightning-map
-                        class="map-frame"
-                        map-markers={mapMarkers}
-                        selected-marker-value={selectedIncidentId}
-                        zoom-level="4"
-                        list-view="hidden"
-                    ></lightning-map>
+                <div class="map-card-header">
+                    <h2 class="card-title">Incident & Resource Center Map</h2>
+                    <lightning-button label={toggleMapLabel} onclick={handleToggleGlobe}></lightning-button>
+                </div>
+                <template if:true={showGlobe}>
+                    <div class="globe-wrap">
+                        <div class="globe-canvas-wrap"></div>
+
+                        <template if:true={globeLoadError}>
+                            <p class="globe-error">{globeLoadError}</p>
+                        </template>
+
+                        <div class="globe-zoom-controls">
+                            <lightning-button-icon
+                                icon-name="utility:zoomin"
+                                variant="border-filled"
+                                alternative-text="Zoom in"
+                                onclick={handleGlobeZoomIn}
+                            ></lightning-button-icon>
+                            <lightning-button-icon
+                                icon-name="utility:zoomout"
+                                variant="border-filled"
+                                alternative-text="Zoom out"
+                                onclick={handleGlobeZoomOut}
+                            ></lightning-button-icon>
+                        </div>
+
+                        <template if:true={hasGlobeDetail}>
+                            <div class="globe-detail-card">
+                                <p class="globe-detail-name">{globeDetailIncident.Name}</p>
+                                <p class="globe-detail-subtitle">{globeDetailSubtitle}</p>
+                                <div class="globe-detail-facts">
+                                    <span class="globe-detail-severity">{globeDetailIncident.Severity__c}</span>
+                                    <span>{globeDetailIncident.Status__c}</span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
                 </template>
-                <template if:false={hasMapMarkers}>
-                    <p class="empty-state">No geocoded incidents to plot yet.</p>
+                <template if:false={showGlobe}>
+                    <template if:true={hasMapMarkers}>
+                        <lightning-map
+                            class="map-frame"
+                            map-markers={mapMarkers}
+                            selected-marker-value={selectedIncidentId}
+                            center={mapCenter}
+                            zoom-level={mapZoomLevel}
+                            list-view="hidden"
+                        ></lightning-map>
+                    </template>
+                    <template if:false={hasMapMarkers}>
+                        <p class="empty-state">No geocoded incidents to plot yet.</p>
+                    </template>
                 </template>
             </div>
 
