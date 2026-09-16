@@ -96,10 +96,10 @@
             <section class="grid three-column">
                 <div class="panel">
                     <h2>Active Incidents</h2>
-                    <template for:each={incidents} for:item="incident">
-                        <div key={incident.Id} class="record-row">
-                            <strong>{incident.Name}</strong>
-                            <span>{incident.Severity__c} - {incident.Location__c}</span>
+                    <template for:each={incidentRows} for:item="incident">
+                        <div key={incident.id} class={incident.rowClass} data-id={incident.id} onclick={handleSelectIncident}>
+                            <strong>{incident.name}</strong>
+                            <span>{incident.severity} - {incident.location}</span>
                         </div>
                     </template>
                 </div>

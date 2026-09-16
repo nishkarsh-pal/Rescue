@@ -85,6 +85,7 @@ public with sharing class RescueOptimizationService {
         Decimal confidence = coverage >= 90 ? 94 : coverage >= 70 ? 86 : 72;
         Decimal etaHours = incident.Severity__c == 'Critical' ? 4.5 : 8;
 
+        // Simulate → Recommend: the plan is only ever a recommendation until a human approves it (no resources are reserved yet).
         Response_Plan__c plan = new Response_Plan__c(
             Incident__c = incidentId,
             Plan_Version__c = getNextPlanVersion(incidentId),
@@ -93,7 +94,7 @@ public with sharing class RescueOptimizationService {
             Estimated_ETA_Hours__c = etaHours,
             Risk_Score__c = riskScore,
             Confidence__c = confidence,
-            Approval_Status__c = riskScore >= 40 ? 'Pending Approval' : 'Draft',
+            Approval_Status__c = 'Pending Approval',
             AI_Recommendation__c = buildRecommendation(incident, requestedTotal, allocatedTotal, coverage, etaHours, riskScore)
         );
         insert plan;
@@ -105,22 +106,26 @@ public with sharing class RescueOptimizationService {
             insert allocations;
         }
 
+        update new Emergency_Incident__c(Id = incidentId, Status__c = 'Recommended');
+
         logDecision(
             incidentId,
             plan.Id,
-            'Allocation & Optimization Agent',
+            'Resource & Allocation Agent',
             plan.AI_Recommendation__c,
             'Prioritized critical requests, earliest required-by time, expiring inventory, and available warehouse stock.',
             'Requests=' + requests.size() + '; Resources=' + resources.size() + '; Coverage=' + coverage.setScale(0) + '%',
             confidence,
             riskScore >= 70 ? 'High' : riskScore >= 40 ? 'Medium' : 'Low',
-            'Response plan generated',
+            'Response plan recommended, awaiting human approval',
             false
         );
 
         return plan.Id;
     }
 
+    // Human Approve → Allocate → Execute: only after explicit human approval do resources move from
+    // Available to Reserved/Allocated and shipments get created for delivery.
     public static void approvePlan(Id responsePlanId) {
         if (responsePlanId == null) {
             throw new AuraHandledException('Response Plan Id is required.');
@@ -137,15 +142,27 @@ public with sharing class RescueOptimizationService {
         update plan;
 
         List<Allocation__c> allocations = [
-            SELECT Id, Incident__c, Relief_Resource__c, Relief_Resource__r.Name,
-                   Relief_Resource__r.Warehouse__r.Location__c, Quantity__c
+            SELECT Id, Incident__c, Resource_Request__c, Relief_Resource__c, Relief_Resource__r.Name,
+                   Relief_Resource__r.Quantity_Available__c, Relief_Resource__r.Warehouse__r.Location__c, Quantity__c
             FROM Allocation__c
             WHERE Response_Plan__c = :responsePlanId
         ];
 
+        Map<Id, Relief_Resource__c> resourcesToUpdate = new Map<Id, Relief_Resource__c>();
+        Set<Id> requestIds = new Set<Id>();
         List<Shipment__c> shipments = new List<Shipment__c>();
+
         for (Allocation__c allocation : allocations) {
-            allocation.Status__c = 'Approved';
+            allocation.Status__c = 'Allocated';
+            requestIds.add(allocation.Resource_Request__c);
+
+            Decimal remaining = (allocation.Relief_Resource__r.Quantity_Available__c == null ? 0 : allocation.Relief_Resource__r.Quantity_Available__c) - allocation.Quantity__c;
+            resourcesToUpdate.put(allocation.Relief_Resource__c, new Relief_Resource__c(
+                Id = allocation.Relief_Resource__c,
+                Quantity_Available__c = Math.max(0, remaining),
+                Status__c = remaining <= 0 ? 'Depleted' : 'Reserved'
+            ));
+
             shipments.add(new Shipment__c(
                 Allocation__c = allocation.Id,
                 Response_Plan__c = responsePlanId,
@@ -160,20 +177,32 @@ public with sharing class RescueOptimizationService {
         if (!allocations.isEmpty()) {
             update allocations;
         }
+        if (!resourcesToUpdate.isEmpty()) {
+            update resourcesToUpdate.values();
+        }
+        if (!requestIds.isEmpty()) {
+            List<Resource_Request__c> requests = new List<Resource_Request__c>();
+            for (Id reqId : requestIds) {
+                requests.add(new Resource_Request__c(Id = reqId, Status__c = 'Allocated'));
+            }
+            update requests;
+        }
         if (!shipments.isEmpty()) {
             insert shipments;
         }
+
+        update new Emergency_Incident__c(Id = plan.Incident__c, Status__c = 'Executing');
 
         logDecision(
             plan.Incident__c,
             plan.Id,
             'RESCUE Coordinator Agent',
-            'Human approved response plan and released allocations for shipment execution.',
-            'Medium/high-impact emergency action requires coordinator approval before execution.',
-            'Created shipments=' + shipments.size(),
+            'Human approved response plan. Resources reserved/allocated and shipments dispatched for execution.',
+            'Medium/high-impact emergency action requires coordinator approval before allocation.',
+            'Allocations=' + allocations.size() + '; Shipments=' + shipments.size(),
             plan.Confidence__c,
             'Medium',
-            'Approved and executed',
+            'Allocated and executed',
             true
         );
     }
@@ -198,6 +227,8 @@ public with sharing class RescueOptimizationService {
         result.summary = 'RESCUE recalculated allocation under the new condition.';
         result.recommendation = 'Rebalance water and medical allocations toward the newly critical district while preserving minimum coverage for existing high-priority locations.';
         result.reason = 'The scenario increases life-critical demand. Reallocation improves critical-location coverage while maintaining baseline support for the original incident.';
+
+        update new Emergency_Incident__c(Id = incidentId, Status__c = 'Replanning');
 
         logDecision(
             incidentId,

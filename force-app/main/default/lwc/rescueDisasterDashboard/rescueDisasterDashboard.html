@@ -1,0 +1,175 @@
+<template>
+    <div class="dashboard">
+        <div class="page-header">
+            <div>
+                <p class="eyebrow">Emergency Operations</p>
+                <h1 class="title">Disaster Response Command Center</h1>
+                <p class="subtitle">AI-powered insights. Faster decisions. Safer communities.</p>
+            </div>
+            <div class="tagline">"Detect. Assess. Respond. Recover."</div>
+        </div>
+
+        <template if:true={errorMessage}>
+            <div class="error-banner">{errorMessage}</div>
+        </template>
+        <template if:true={isLoading}>
+            <lightning-spinner alternative-text="Working" size="small"></lightning-spinner>
+        </template>
+
+        <div class="metrics-row">
+            <div class="metric-card">
+                <p class="metric-label">Active Incidents</p>
+                <p class="metric-value">{metrics.activeIncidents}</p>
+            </div>
+            <div class="metric-card">
+                <p class="metric-label">Resources Deployed</p>
+                <p class="metric-value">{metrics.resourcesDeployed}</p>
+            </div>
+            <div class="metric-card">
+                <p class="metric-label">Avg Response Time</p>
+                <p class="metric-value">{metrics.avgEtaMinutes} mins</p>
+            </div>
+            <div class="metric-card">
+                <p class="metric-label">Locations Monitored</p>
+                <p class="metric-value">{metrics.locationsMonitored}</p>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <div class="card recent-incidents">
+                <h2 class="card-title">Recent Incidents</h2>
+                <template if:false={hasIncidents}>
+                    <p class="empty-state">No incidents yet.</p>
+                </template>
+                <template for:each={recentIncidents} for:item="incident">
+                    <div key={incident.id} class={incident.rowClass} data-id={incident.id} onclick={handleSelectIncident}>
+                        <div>
+                            <p class="incident-name">{incident.name}</p>
+                            <p class="incident-location">{incident.location}</p>
+                        </div>
+                        <div class="incident-meta">
+                            <span class={incident.severityClass}>{incident.severity}</span>
+                            <span class="incident-time">{incident.timeLabel}</span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <div class="card map-card">
+                <h2 class="card-title">Incident & Resource Center Map</h2>
+                <template if:true={hasMapMarkers}>
+                    <lightning-map
+                        class="map-frame"
+                        map-markers={mapMarkers}
+                        selected-marker-value={selectedIncidentId}
+                        zoom-level="4"
+                        list-view="hidden"
+                    ></lightning-map>
+                </template>
+                <template if:false={hasMapMarkers}>
+                    <p class="empty-state">No geocoded incidents to plot yet.</p>
+                </template>
+            </div>
+
+            <div class="card agent-panel">
+                <div class="agent-header">
+                    <span class="agent-title">Agentforce</span>
+                    <span class="agent-badge">Beta</span>
+                </div>
+                <p class="agent-subtitle">AI Incident Response Agent</p>
+
+                <template if:true={hasTopIncident}>
+                    <div class="agent-message">
+                        I've analysed the latest incident data and identified a priority response.
+                    </div>
+
+                    <div class="incident-card">
+                        <p class="incident-card-title">{topIncident.Name}</p>
+                        <p class="incident-card-subtitle">{topIncidentSubtitle}</p>
+                        <dl class="incident-facts">
+                            <dt>Severity</dt>
+                            <dd>{topIncident.Severity__c}</dd>
+                            <dt>Status</dt>
+                            <dd>{topIncident.Status__c}</dd>
+                            <dt>Estimated Impact</dt>
+                            <dd>~ {topIncident.Population_Affected__c} people affected</dd>
+                        </dl>
+
+                        <p class="next-steps-title">Recommended Next Steps</p>
+                        <template for:each={nextSteps} for:item="step">
+                            <div key={step.key} class="next-step">
+                                <span class={step.numberClass}>{step.number}</span>
+                                <span>{step.label}</span>
+                            </div>
+                        </template>
+
+                        <template if:true={canApproveTopPlan}>
+                            <lightning-button
+                                variant="brand"
+                                label="View AI Response Plan"
+                                class="view-plan-btn"
+                                onclick={handleApprove}
+                            ></lightning-button>
+                        </template>
+                    </div>
+
+                    <div class="agent-chat">
+                        <template for:each={chatMessages} for:item="message">
+                            <div key={message.id} class={message.from}>{message.text}</div>
+                        </template>
+                    </div>
+
+                    <div class="agent-ask">
+                        <lightning-input
+                            label="Ask"
+                            variant="label-hidden"
+                            placeholder="Ask me anything about this incident..."
+                            value={askText}
+                            onchange={handleAskChange}
+                        ></lightning-input>
+                        <lightning-button-icon icon-name="utility:send" onclick={handleAsk}></lightning-button-icon>
+                    </div>
+                    <p class="agent-disclaimer">AI may make mistakes. Please review critical information.</p>
+                </template>
+            </div>
+
+            <div class="card resource-center-card">
+                <h2 class="card-title">Nearest Resource Center</h2>
+                <template if:true={hasNearestResourceCenter}>
+                    <p class="resource-center-name">{nearestResourceCenter.name}</p>
+                    <p class="resource-center-location">{nearestResourceCenter.location}</p>
+                    <div class="resource-grid">
+                        <template for:each={nearestResourceCenter.breakdown} for:item="item">
+                            <div key={item.id} class="resource-item">
+                                <p class="resource-qty">{item.quantity}</p>
+                                <p class="resource-type">{item.type}</p>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+                <template if:false={hasNearestResourceCenter}>
+                    <p class="empty-state">No resource centers seeded yet.</p>
+                </template>
+            </div>
+
+            <div class="card allocation-card">
+                <h2 class="card-title">AI Recommended Allocation</h2>
+                <template if:true={hasAllocationBreakdown}>
+                    <template for:each={allocationBreakdown} for:item="item">
+                        <div key={item.id} class="allocation-row">
+                            <span class="allocation-type">{item.type}</span>
+                            <span class="allocation-qty">{item.allocatedQty} of {item.requestedQty} available</span>
+                        </div>
+                    </template>
+                </template>
+                <template if:false={hasAllocationBreakdown}>
+                    <p class="empty-state">No allocation recommendation yet.</p>
+                </template>
+                <div class="allocation-actions">
+                    <lightning-button label="Modify Plan" onclick={handleModifyPlan}></lightning-button>
+                    <lightning-button variant="brand" label="Approve & Dispatch" disabled={approveDisabled} onclick={handleApprove}></lightning-button>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>

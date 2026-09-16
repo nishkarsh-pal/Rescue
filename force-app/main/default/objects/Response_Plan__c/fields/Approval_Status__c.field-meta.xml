@@ -16,6 +16,16 @@
                 <label>Draft</label>
             </value>
             <value>
+                <fullName>Simulated</fullName>
+                <default>false</default>
+                <label>Simulated</label>
+            </value>
+            <value>
+                <fullName>Recommended</fullName>
+                <default>false</default>
+                <label>Recommended</label>
+            </value>
+            <value>
                 <fullName>Pending Approval</fullName>
                 <default>false</default>
                 <label>Pending Approval</label>

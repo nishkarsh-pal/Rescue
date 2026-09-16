@@ -1,0 +1,218 @@
+.feed-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.command-strip {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.subtitle {
+    margin: 0.25rem 0 0;
+    color: #5c6670;
+    font-size: 0.8rem;
+}
+
+.error-banner {
+    background: #fdecea;
+    color: #b42318;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+}
+
+.body-grid {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 1rem;
+}
+
+.incident-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.incident-row {
+    border: 1px solid #e0e5ea;
+    border-radius: 8px;
+    padding: 0.6rem 0.75rem;
+    cursor: pointer;
+    background: #fff;
+}
+
+.incident-row.selected {
+    border-color: #0176d3;
+    box-shadow: 0 0 0 1px #0176d3;
+}
+
+.incident-row-header {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 600;
+}
+
+.incident-row-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: #5c6670;
+    margin-top: 0.15rem;
+}
+
+.incident-row-status {
+    font-size: 0.7rem;
+    color: #0176d3;
+    margin-top: 0.25rem;
+    text-transform: uppercase;
+}
+
+.severity-badge {
+    font-size: 0.7rem;
+    border-radius: 10px;
+    padding: 0.05rem 0.5rem;
+    color: #fff;
+}
+
+.severity-critical { background: #b42318; }
+.severity-high { background: #e07b00; }
+.severity-medium { background: #b98900; }
+.severity-low { background: #4b8b3b; }
+
+.incident-detail {
+    border: 1px solid #e0e5ea;
+    border-radius: 8px;
+    padding: 1rem;
+    background: #fff;
+}
+
+.detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.source-tag {
+    background: #eef4ff;
+    color: #0176d3;
+    font-size: 0.7rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 10px;
+}
+
+.stage-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin: 0.75rem 0;
+}
+
+.stage-pill {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 10px;
+    background: #f0f2f5;
+    color: #5c6670;
+}
+
+.stage-complete {
+    background: #0176d3;
+    color: #fff;
+}
+
+.map-frame {
+    width: 100%;
+    height: 260px;
+    display: block;
+    border: 1px solid #e0e5ea;
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+}
+
+.detail-section {
+    margin-bottom: 0.75rem;
+}
+
+.detail-section h3 {
+    font-size: 0.85rem;
+    margin: 0 0 0.25rem;
+}
+
+.plan-panel {
+    background: #f6f9fc;
+    border-radius: 8px;
+    padding: 0.75rem;
+}
+
+.plan-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.75rem;
+    color: #5c6670;
+    margin-top: 0.5rem;
+}
+
+.action-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.empty-state {
+    color: #8a9099;
+    font-size: 0.85rem;
+}
+
+.agent-console {
+    border-top: 1px solid #e0e5ea;
+    padding-top: 0.75rem;
+}
+
+.agent-chat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-height: 160px;
+    overflow-y: auto;
+    margin-bottom: 0.5rem;
+}
+
+.agent-chat .agent {
+    background: #f0f2f5;
+    border-radius: 8px;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+    align-self: flex-start;
+}
+
+.agent-chat .user {
+    background: #0176d3;
+    color: #fff;
+    border-radius: 8px;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+    align-self: flex-end;
+}
+
+.agent-ask {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.agent-ask lightning-input {
+    flex-grow: 1;
+}
