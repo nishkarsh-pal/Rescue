@@ -1,0 +1,67 @@
+.connect-button,
+.connection-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.connect-button {
+  color: #fff;
+  background: var(--forest);
+}
+
+.connection-button {
+  cursor: pointer;
+}
+
+.live-dot.demo {
+  background: #e5ad47;
+  box-shadow: 0 0 0 3px rgba(229, 173, 71, 0.18);
+}
+
+.connection-error {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: -10px 0 14px;
+  padding: 10px 12px;
+  color: #8d342d;
+  background: #fcecea;
+  border: 1px solid #f1c8c3;
+  border-radius: 5px;
+  font-size: 11px;
+}
+
+.connection-error span {
+  flex: 1;
+}
+
+.connection-error button {
+  display: grid;
+  place-items: center;
+  color: inherit;
+  background: none;
+  border: 0;
+}
+
+@media (max-width: 680px) {
+  .connect-button,
+  .connection-button {
+    width: 38px;
+    height: 38px;
+    overflow: hidden;
+    padding: 0 15px;
+    color: transparent;
+    white-space: nowrap;
+  }
+
+  .connect-button .live-dot,
+  .connection-button .live-dot {
+    position: absolute;
+  }
+}
