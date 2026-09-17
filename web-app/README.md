@@ -24,6 +24,19 @@ npm run dev -- --host 127.0.0.1
 6. Give the integration users Apex class access to `RescueApi` and the RESCUE
 	controller/service classes, plus the required custom-object permissions.
 7. Copy `.env.example` to `.env` and set the Connected App consumer key.
+8. Add a restricted Google Maps JavaScript API key as `VITE_GOOGLE_MAPS_API_KEY`.
+	Enable Maps JavaScript API and restrict the key to your local and production
+	HTTPS origins. The dashboard falls back to a clear configuration message when
+	this variable is missing.
+
+For local Vite development, add both of these HTTP referrers to the key:
+
+- `http://127.0.0.1:5174/*`
+- `http://localhost:5174/*`
+
+The Google Cloud project must have billing enabled and the Maps JavaScript API
+enabled. A key copied from a Google Maps network request may be restricted to a
+different application and is not guaranteed to work in this React app.
 
 For sandbox authentication, set `VITE_SF_LOGIN_URL` to
 `https://test.salesforce.com`. Production deployments must register their HTTPS

@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Activity, AlertTriangle, Bell, Boxes, Check, ChevronDown, CircleDot,
   ClipboardCheck, Clock3, Command, Gauge, LayoutDashboard, MapPin, Menu,
-  Radio, Search, ShieldCheck, Sparkles, Truck, Users, Warehouse, X, Zap,
+  Moon, Radio, Search, ShieldCheck, Sparkles, Sun, Truck, Users, Warehouse, X, Zap,
 } from 'lucide-react'
 import './rescue.css'
 import './salesforce.css'
@@ -17,7 +17,6 @@ import {
 } from './salesforce.js'
 
 const fallbackIncidents = [
-  { id: 1, name: 'Kenya Flash Floods', country: 'Kenya', type: 'Flood', severity: 'Critical', status: 'Escalated', people: '42,800', updated: '4 min', coordinates: '0.57 N, 37.89 E', description: 'River overflow has displaced communities across three counties. Roads into Tana River are partially inaccessible.', needs: ['Water', 'Shelter', 'Medical'], coverage: 64, eta: '3h 20m', risk: 86 },
   { id: 2, name: 'Gaziantep Earthquake', country: 'Türkiye', type: 'Earthquake', severity: 'High', status: 'Executing', people: '18,200', updated: '11 min', coordinates: '38.96 N, 35.24 E', description: 'A magnitude 6.4 event caused structural damage and utility outages across dense urban districts.', needs: ['Medical', 'Shelter', 'Food'], coverage: 78, eta: '2h 45m', risk: 72 },
   { id: 3, name: 'Guatemala Landslide', country: 'Guatemala', type: 'Landslide', severity: 'High', status: 'Recommended', people: '9,600', updated: '18 min', coordinates: '15.78 N, 90.23 W', description: 'Saturated hillsides have blocked primary transit routes and isolated several residential communities.', needs: ['Food', 'Equipment', 'Medical'], coverage: 58, eta: '4h 10m', risk: 68 },
   { id: 4, name: 'Tropical Cyclone Delta', country: 'Philippines', type: 'Cyclone', severity: 'High', status: 'Executing', people: '31,400', updated: '26 min', coordinates: '12.87 N, 121.77 E', description: 'Severe winds and flash flooding are affecting coastal communities and critical infrastructure.', needs: ['Water', 'Shelter', 'Power'], coverage: 81, eta: '2h 05m', risk: 70 },
@@ -34,16 +33,17 @@ const fallbackResources = [
 
 const agents = [['Situation intelligence', 96], ['Needs assessment', 94], ['Resource allocation', 91], ['Logistics routing', 95]]
 const activities = [
-  ['Shipment SHP-0058 dispatched', 'Nairobi Hub to Tana River', '2 min ago', Truck],
-  ['Response plan approved', 'Kenya Flash Floods · RP-0024', '8 min ago', ClipboardCheck],
+  ['Shipment SHP-0058 dispatched', 'Regional Hub to Gaziantep', '2 min ago', Truck],
+  ['Response plan approved', 'Gaziantep Earthquake · RP-0024', '8 min ago', ClipboardCheck],
   ['New situation report received', 'ReliefWeb incident feed', '14 min ago', Radio],
-  ['Inventory threshold detected', 'Medical kits · Nairobi Hub', '21 min ago', AlertTriangle],
+  ['Inventory threshold detected', 'Medical kits · Regional Hub', '21 min ago', AlertTriangle],
 ]
 const navItems = [['Overview', LayoutDashboard], ['Incidents', AlertTriangle], ['Resources', Boxes], ['Logistics', Truck], ['AI decisions', Sparkles]]
+const hiddenIncidentNames = new Set(['Kenya Flash Floods'])
 
 export default function RescueDashboard() {
   const [activeNav, setActiveNav] = useState('Overview')
-  const [selectedId, setSelectedId] = useState(1)
+  const [selectedId, setSelectedId] = useState(2)
   const [query, setQuery] = useState('')
   const [severity, setSeverity] = useState('All')
   const [approved, setApproved] = useState(false)
@@ -54,7 +54,9 @@ export default function RescueDashboard() {
   const [dashboard, setDashboard] = useState(null)
   const [connection, setConnection] = useState(getSalesforceSession() ? 'loading' : 'demo')
   const [connectionError, setConnectionError] = useState('')
-  const displayIncidents = dashboard?.incidents?.length ? dashboard.incidents : fallbackIncidents
+  const [theme, setTheme] = useState(() => localStorage.getItem('rescue.theme') || 'light')
+  const sourceIncidents = dashboard?.incidents?.length ? dashboard.incidents : fallbackIncidents
+  const displayIncidents = sourceIncidents.filter((incident) => !hiddenIncidentNames.has(incident.name))
   const displayResources = dashboard?.resources?.length ? dashboard.resources : fallbackResources
   const displayAgents = dashboard?.evaluations?.length
     ? dashboard.evaluations.slice(0, 4).map((evaluation) => [evaluation.Agent__c, Number(evaluation.Confidence__c || 0)])
@@ -74,7 +76,7 @@ export default function RescueDashboard() {
         const liveDashboard = await loadSalesforceDashboard()
         if (!active) return
         setDashboard(liveDashboard)
-        setSelectedId(liveDashboard.incidents[0]?.id)
+        setSelectedId(liveDashboard.incidents.find((incident) => !hiddenIncidentNames.has(incident.name))?.id)
         setConnection('live')
       } catch (error) {
         if (!active) return
@@ -85,6 +87,11 @@ export default function RescueDashboard() {
     initializeSalesforce()
     return () => { active = false }
   }, [])
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    localStorage.setItem('rescue.theme', theme)
+  }, [theme])
 
   function selectIncident(id) {
     setSelectedId(id)
@@ -99,11 +106,19 @@ export default function RescueDashboard() {
   }
 
   async function refreshDashboard() {
-    setConnection('loading')
     try {
-      setDashboard(await loadSalesforceDashboard())
-      setConnection('live')
-      showNotice('Salesforce data refreshed')
+      if (connection === 'live') {
+        setDashboard(await loadSalesforceDashboard())
+        setConnection('live')
+        showNotice('Salesforce data refreshed')
+      } else {
+        setQuery('')
+        setSeverity('All')
+        setSelectedId(2)
+        setApproved(false)
+        setSimulation(false)
+        showNotice('Demo view refreshed')
+      }
     } catch (error) {
       setConnection('error')
       setConnectionError(error.message)
@@ -147,10 +162,10 @@ export default function RescueDashboard() {
         <button className="icon-button menu-button" onClick={() => setMobileNav(true)} aria-label="Open navigation"><Menu size={21} /></button>
         <div className="mobile-brand"><Command size={18} /><strong>RESCUE</strong></div>
         <label className="global-search"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search incidents, locations, resources..." /></label>
-        <div className="top-actions">{connection === 'live' ? <button className="live-pill connection-button" onClick={refreshDashboard}><span className="live-dot" /> Salesforce live</button> : <button className="connect-button" onClick={() => isSalesforceConfigured() ? beginSalesforceLogin() : setConnectionError('Add your Connected App client ID to web-app/.env first.')}><span className="live-dot demo" /> Connect Salesforce</button>}<button className="icon-button notification" aria-label="Notifications"><Bell size={20} /><span>3</span></button></div>
+        <div className="top-actions">{connection === 'live' ? <button className="live-pill connection-button" onClick={() => showNotice('Salesforce connection is active')}><span className="live-dot" /> Salesforce live</button> : <button className="connect-button" onClick={() => isSalesforceConfigured() ? beginSalesforceLogin() : setConnectionError('Add your Connected App client ID to web-app/.env first.')}><span className="live-dot demo" /> Connect Salesforce</button>}<button className="icon-button theme-button" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`} title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>{theme === 'light' ? <Moon size={19} /> : <Sun size={19} />}</button><button className="icon-button notification" aria-label="Notifications"><Bell size={20} /><span>3</span></button></div>
       </header>
       <div className="content">
-        <section className="page-heading"><div><p className="eyebrow">Emergency operations · September 16, 2026</p><h1>{activeNav === 'Overview' ? 'Global response overview' : activeNav}</h1><p>Live coordination across active incidents and response teams.</p></div><button className="primary-button" onClick={() => showNotice('Incident report workspace opened')}><AlertTriangle size={18} /> Report incident</button></section>
+        <section className="page-heading"><div><p className="eyebrow">Emergency operations · September 16, 2026</p><h1>{activeNav === 'Overview' ? 'Emergency response overview' : activeNav}</h1><p>Coordinate active incidents and response teams in real time.</p></div><button className="primary-button" onClick={() => showNotice('Incident report workspace opened')}><AlertTriangle size={18} /> Report an incident</button></section>
         {connectionError && <div className="connection-error"><AlertTriangle size={16} /><span>{connectionError}</span><button onClick={() => setConnectionError('')} aria-label="Dismiss connection error"><X size={15} /></button></div>}
         <section className="metrics-grid" aria-label="Operational metrics">
           <Metric icon={AlertTriangle} label="Active incidents" value={displayIncidents.length} detail={`${displayIncidents.filter((incident) => incident.severity === 'Critical').length} critical`} tone="red" />
@@ -167,8 +182,8 @@ export default function RescueDashboard() {
           </div>
 
           <article className="panel focus-panel">
-            <div className="focus-top"><div><span className={`severity-label ${selected.severity.toLowerCase()}`}>{selected.severity} priority</span><h2>{selected.name}</h2><p><MapPin size={15} /> {selected.country} · {selected.coordinates}</p></div><button className="more-button" aria-label="Incident actions">•••</button></div>
-            <div className="map-visual" role="img" aria-label={`Response map centered on ${selected.country}`}><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Equirectangular_projection_SW.jpg/1280px-Equirectangular_projection_SW.jpg" alt="Satellite view of the world" /><div className="map-shade" /><span className="map-pin"><MapPin size={22} /></span><span className="map-label">{selected.country}<small>Primary impact zone</small></span><div className="map-status"><Radio size={15} /> 8 field signals</div></div>
+            <div className="focus-top"><div><span className={`severity-label ${selected.severity.toLowerCase()}`}>{selected.severity} priority</span><h2>{selected.name}</h2><p><MapPin size={15} /> {selected.country} · {selected.coordinates}</p></div><span className="map-provider-label">Google Maps</span></div>
+            <GoogleIncidentMap incidents={displayIncidents} selected={selected} onSelect={selectIncident} />
             <p className="incident-description">{selected.description}</p>
             <div className="impact-row"><div><span>People affected</span><strong>{selected.people}</strong></div><div><span>Current coverage</span><strong>{selected.coverage}%</strong></div><div><span>Response ETA</span><strong>{selected.eta}</strong></div></div>
             <div className="needs"><span>Priority needs</span>{selected.needs.map((need) => <b key={need}>{need}</b>)}</div>
@@ -176,7 +191,7 @@ export default function RescueDashboard() {
 
           <aside className="panel ai-panel">
             <div className="agent-heading"><span className="agent-icon"><Sparkles size={19} /></span><div><h2>AI response agent</h2><p>Recommendation ready</p></div><span className="online-dot" /></div>
-            <div className="recommendation"><span className="section-kicker">Recommended allocation</span><h3>Deploy rapid response package</h3><p>Prioritize water and medical supplies from Nairobi Hub via the northern route.</p><div className="allocation-line"><span>Water</span><strong>24,000 L</strong></div><div className="allocation-line"><span>Medical kits</span><strong>1,800</strong></div><div className="allocation-line"><span>Shelter kits</span><strong>3,200</strong></div><div className="confidence"><span>Confidence</span><div><i style={{ width: `${100 - selected.risk / 3}%` }} /></div><strong>{Math.round(100 - selected.risk / 3)}%</strong></div><div className="risk-note"><ShieldCheck size={17} /><span><strong>Human approval required</strong><small>Risk score {selected.risk}% · Medium-high impact</small></span></div></div>
+            <div className="recommendation"><span className="section-kicker">Recommended allocation</span><h3>Deploy rapid response package</h3><p>Prioritize water and medical supplies from the nearest available regional hub.</p><div className="allocation-line"><span>Water</span><strong>24,000 L</strong></div><div className="allocation-line"><span>Medical kits</span><strong>1,800</strong></div><div className="allocation-line"><span>Shelter kits</span><strong>3,200</strong></div><div className="confidence"><span>Confidence</span><div><i style={{ width: `${100 - selected.risk / 3}%` }} /></div><strong>{Math.round(100 - selected.risk / 3)}%</strong></div><div className="risk-note"><ShieldCheck size={17} /><span><strong>Human approval required</strong><small>Risk score {selected.risk}% · Medium-high impact</small></span></div></div>
             <button className={approved ? 'approve-button approved' : 'approve-button'} onClick={approvePlan} disabled={connection === 'live' && !selected.planId}>{approved ? <><Check size={18} /> Plan approved</> : <><Zap size={18} /> Approve & dispatch</>}</button>
             <button className="secondary-button" onClick={() => showNotice('Plan editor opened')}>Modify response plan</button>
           </aside>
@@ -203,4 +218,118 @@ function Metric({ icon: Icon, label, value, detail, tone }) {
 
 function PanelHeading({ kicker, title, action }) {
   return <div className="panel-heading"><div><span className="section-kicker">{kicker}</span><h2>{title}</h2></div><button className="text-button">{action}</button></div>
+}
+
+function GoogleIncidentMap({ incidents, selected, onSelect }) {
+  const mapElement = useRef(null)
+  const mapInstance = useRef(null)
+  const markers = useRef([])
+  const [mapType, setMapType] = useState('roadmap')
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+  const [mapError, setMapError] = useState(() => apiKey ? '' : 'Add VITE_GOOGLE_MAPS_API_KEY to web-app/.env to load Google Maps.')
+  const [mapReady, setMapReady] = useState(false)
+
+  useEffect(() => {
+    const handleAuthFailure = () => {
+      setMapReady(false)
+      setMapError('Google Maps needs Maps JavaScript API enabled, billing enabled, and localhost referrers allowed.')
+    }
+    window.addEventListener('rescue-google-auth-failure', handleAuthFailure)
+    if (!apiKey) {
+      return () => window.removeEventListener('rescue-google-auth-failure', handleAuthFailure)
+    }
+
+    let active = true
+    loadGoogleMaps(apiKey)
+      .then(() => {
+        if (!active || !mapElement.current || mapInstance.current) return
+        mapInstance.current = new window.google.maps.Map(mapElement.current, {
+          center: { lat: 18, lng: 18 },
+          zoom: 2,
+          minZoom: 2,
+          mapTypeId: 'roadmap',
+          streetViewControl: false,
+          fullscreenControl: true,
+          mapTypeControl: false,
+          gestureHandling: 'greedy',
+          styles: [{ featureType: 'poi', stylers: [{ visibility: 'off' }] }],
+        })
+        setMapReady(true)
+      })
+      .catch(() => { if (active) { setMapReady(false); setMapError('Google Maps needs Maps JavaScript API enabled, billing enabled, and localhost referrers allowed.') } })
+
+    return () => {
+      active = false
+      window.removeEventListener('rescue-google-auth-failure', handleAuthFailure)
+    }
+  }, [apiKey])
+
+  useEffect(() => {
+    if (!mapInstance.current || !window.google?.maps) return
+    mapInstance.current.setMapTypeId(mapType)
+  }, [mapType])
+
+  useEffect(() => {
+    if (!mapInstance.current || !window.google?.maps) return
+    markers.current.forEach((marker) => marker.setMap(null))
+    markers.current = incidents.map((incident) => {
+      const marker = new window.google.maps.Marker({
+        map: mapInstance.current,
+        position: getIncidentPosition(incident),
+        title: incident.name,
+        label: { text: '•', color: incident.id === selected.id ? '#d93025' : '#f9a825', fontSize: '38px' },
+        zIndex: incident.id === selected.id ? 10 : 2,
+      })
+      marker.addListener('click', () => onSelect(incident.id))
+      return marker
+    })
+
+    const selectedPosition = getIncidentPosition(selected)
+    mapInstance.current.setCenter(selectedPosition)
+    mapInstance.current.setZoom(incidentCountForZoom(incidents.length))
+    return () => markers.current.forEach((marker) => marker.setMap(null))
+  }, [incidents, selected, onSelect])
+
+  return <div className="google-map-shell">
+    <div ref={mapElement} className="map-visual google-map" role="img" aria-label="Google map showing active RESCUE incidents" />
+    {(!mapReady || mapError) && <div className="google-map-fallback" role="img" aria-label="Satellite preview of active RESCUE incidents"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Equirectangular_projection_SW.jpg/1280px-Equirectangular_projection_SW.jpg" alt="Satellite preview of the global incident network" /><div className="fallback-grid" />{incidents.map((incident, index) => <button key={incident.id} className={`fallback-pin pin-${index + 1} ${incident.id === selected.id ? 'selected' : ''}`} onClick={() => onSelect(incident.id)} aria-label={`Select ${incident.name}`} />)}</div>}
+    <div className="google-map-toolbar"><button className={mapType === 'roadmap' ? 'active' : ''} onClick={() => setMapType('roadmap')}>Map</button><button className={mapType === 'satellite' ? 'active' : ''} onClick={() => setMapType('satellite')}>Satellite</button></div>
+    <div className="map-incident-card"><strong>{selected.name}</strong><span>{selected.type} — {selected.country}</span><div><b className={`severity-text ${selected.severity.toLowerCase()}`}>{selected.severity}</b><span>{selected.status}</span></div></div>
+    <span className="map-label">Global operations<small>{incidents.length} active impact zones · drag to move</small></span><div className="map-status"><Radio size={15} /> Live incident network</div>
+    {mapError && <div className="map-error"><AlertTriangle size={16} /><span>Preview map active. {mapError}</span></div>}
+  </div>
+}
+
+function loadGoogleMaps(apiKey) {
+  if (window.google?.maps) return Promise.resolve()
+  if (window.rescueGoogleMapsPromise) return window.rescueGoogleMapsPromise
+  window.rescueGoogleMapsPromise = new Promise((resolve, reject) => {
+    window.gm_authFailure = () => {
+      window.dispatchEvent(new Event('rescue-google-auth-failure'))
+      reject(new Error('Google Maps authentication failed'))
+    }
+    const script = document.createElement('script')
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&v=weekly`
+    script.async = true
+    script.defer = true
+    script.onload = resolve
+    script.onerror = reject
+    document.head.appendChild(script)
+  })
+  return window.rescueGoogleMapsPromise
+}
+
+function getIncidentPosition(incident) {
+  const coordinateMatch = String(incident.coordinates || '').match(/(-?\d+(?:\.\d+)?)[^\d-]+(-?\d+(?:\.\d+)?)/)
+  if (coordinateMatch) {
+    const latitude = Number(coordinateMatch[1]) * (String(incident.coordinates).includes('S') ? -1 : 1)
+    const longitude = Number(coordinateMatch[2]) * (String(incident.coordinates).includes('W') ? -1 : 1)
+    return { lat: latitude, lng: longitude }
+  }
+  const fallbackPositions = { Türkiye: { lat: 38.96, lng: 35.24 }, Guatemala: { lat: 15.78, lng: -90.23 }, Philippines: { lat: 12.87, lng: 121.77 }, Bangladesh: { lat: 23.68, lng: 90.35 }, Somalia: { lat: 5.15, lng: 46.2 } }
+  return fallbackPositions[incident.country] || { lat: 18, lng: 18 }
+}
+
+function incidentCountForZoom(count) {
+  return count > 4 ? 2 : count > 1 ? 3 : 5
 }
