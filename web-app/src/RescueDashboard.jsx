@@ -58,6 +58,9 @@ export default function RescueDashboard() {
   const sourceIncidents = dashboard?.incidents?.length ? dashboard.incidents : fallbackIncidents
   const displayIncidents = sourceIncidents.filter((incident) => !hiddenIncidentNames.has(incident.name))
   const displayResources = dashboard?.resources?.length ? dashboard.resources : fallbackResources
+  const criticalNeeds = dashboard?.requests?.filter((request) => request.Priority__c === 'Critical').length || 0
+  const availableResources = dashboard?.resources?.reduce((total, resource) => total + Number(resource.Quantity_Available__c || 0), 0) || 0
+  const aiDecisionCount = dashboard?.decisions?.length || 0
   const displayAgents = dashboard?.evaluations?.length
     ? dashboard.evaluations.slice(0, 4).map((evaluation) => [evaluation.Agent__c, Number(evaluation.Confidence__c || 0)])
     : agents
@@ -147,7 +150,7 @@ export default function RescueDashboard() {
       <div className="brand"><div className="brand-mark"><Command size={21} /></div><div><strong>RESCUE</strong><span>Command network</span></div><button className="icon-button sidebar-close" onClick={() => setMobileNav(false)} aria-label="Close navigation"><X size={20} /></button></div>
       <nav aria-label="Main navigation">
         <p className="nav-label">Operations</p>
-        {navItems.map(([label, Icon]) => <button key={label} className={activeNav === label ? 'nav-item active' : 'nav-item'} onClick={() => { setActiveNav(label); setMobileNav(false) }}><Icon size={19} /><span>{label}</span>{label === 'Incidents' && <b>6</b>}</button>)}
+        {navItems.map(([label, Icon]) => <button key={label} className={activeNav === label ? 'nav-item active' : 'nav-item'} onClick={() => { setActiveNav(label); setMobileNav(false) }}><Icon size={19} /><span>{label}</span>{label === 'Incidents' && <b>{displayIncidents.length}</b>}</button>)}
         <p className="nav-label">Management</p>
         <button className="nav-item"><Warehouse size={19} /><span>Warehouses</span></button>
         <button className="nav-item"><Users size={19} /><span>Field teams</span></button>
@@ -169,9 +172,9 @@ export default function RescueDashboard() {
         {connectionError && <div className="connection-error"><AlertTriangle size={16} /><span>{connectionError}</span><button onClick={() => setConnectionError('')} aria-label="Dismiss connection error"><X size={15} /></button></div>}
         <section className="metrics-grid" aria-label="Operational metrics">
           <Metric icon={AlertTriangle} label="Active incidents" value={displayIncidents.length} detail={`${displayIncidents.filter((incident) => incident.severity === 'Critical').length} critical`} tone="red" />
-          <Metric icon={Users} label="People affected" value={connection === 'live' ? 'Live' : '193K'} detail={connection === 'live' ? 'Salesforce records' : 'Demo dataset'} tone="amber" />
-          <Metric icon={Truck} label="Resources deployed" value="78%" detail="+6% today" tone="green" />
-          <Metric icon={Clock3} label="Average response" value="3h 42m" detail="24m faster" tone="blue" />
+          <Metric icon={Users} label="Critical needs" value={connection === 'live' ? criticalNeeds : 'Demo'} detail={connection === 'live' ? 'Resource requests' : 'Connect Salesforce'} tone="amber" />
+          <Metric icon={Truck} label="Available resources" value={connection === 'live' ? availableResources.toLocaleString('en-US') : 'Demo'} detail={connection === 'live' ? 'Units in inventory' : 'Connect Salesforce'} tone="green" />
+          <Metric icon={Clock3} label="AI decisions" value={connection === 'live' ? aiDecisionCount : 'Demo'} detail={connection === 'live' ? 'Audit trail records' : 'Connect Salesforce'} tone="blue" />
         </section>
 
         <section className="workspace-grid">

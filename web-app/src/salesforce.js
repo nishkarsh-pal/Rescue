@@ -152,6 +152,7 @@ export function mapSalesforceDashboard(data) {
     }),
     resources: mapResources(data.resources || []),
     plans: data.plans || [],
+    allocations: data.allocations || [],
     shipments: data.shipments || [],
     decisions: data.decisions || [],
     evaluations: data.evaluations || [],
