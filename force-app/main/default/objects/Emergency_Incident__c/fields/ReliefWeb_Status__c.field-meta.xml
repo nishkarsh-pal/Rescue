@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>ReliefWeb_Status__c</fullName>
+    <label>ReliefWeb Status</label>
+    <length>40</length>
+    <required>false</required>
+    <trackFeedHistory>false</trackFeedHistory>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <description>Raw "status" value from the ReliefWeb disasters list API response (e.g. alert, ongoing, current, past). Not to be confused with Status__c, which tracks the RESCUE pipeline stage.</description>
+</CustomField>

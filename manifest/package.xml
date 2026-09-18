@@ -72,5 +72,9 @@
         <members>*</members>
         <name>LightningMessageChannel</name>
     </types>
+    <types>
+        <members>*</members>
+        <name>RemoteSiteSetting</name>
+    </types>
     <version>67.0</version>
 </Package>
