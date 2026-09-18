@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomMetadata xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <label>Default</label>
+    <protected>false</protected>
+    <values>
+        <field>Client_Id__c</field>
+        <value xsi:type="xsd:string">3MVG9HtWXcDGV.nFwiDLsgFsdn5nbSDcNCDvQjNdc87reljuvB2pwINqm0GOuO36O8GamwEk6WHJFj6c9YDiU</value>
+    </values>
+    <values>
+        <field>Client_Secret__c</field>
+        <value xsi:type="xsd:string">80FC24EB3E868A11C30D840F511699E4AE67081BE4679A9BB0744A8596AE4061</value>
+    </values>
+    <values>
+        <field>Agent_Id__c</field>
+        <value xsi:type="xsd:string">0Xxfj000003nlP3CAI</value>
+    </values>
+    <values>
+        <field>Api_Endpoint__c</field>
+        <value xsi:type="xsd:string">https://api.salesforce.com/einstein/ai-agent/v1</value>
+    </values>
+    <values>
+        <field>Token_Endpoint__c</field>
+        <value xsi:type="xsd:string">https://orgfarm-5cd6bc8368-dev-ed.develop.my.salesforce.com/services/oauth2/token</value>
+    </values>
+    <values>
+        <field>Instance_Endpoint__c</field>
+        <value xsi:type="xsd:string">https://orgfarm-5cd6bc8368-dev-ed.develop.my.salesforce.com/</value>
+    </values>
+</CustomMetadata>

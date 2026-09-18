@@ -7,7 +7,8 @@ import RESCUE_THREE_GLOBE from '@salesforce/resourceUrl/RescueThreeGlobe';
 import getDashboardData from '@salesforce/apex/RescueCommandCenterController.getDashboardData';
 import approvePlan from '@salesforce/apex/RescueCommandCenterController.approvePlan';
 import generatePlan from '@salesforce/apex/RescueCommandCenterController.generatePlan';
-import sendCommand from '@salesforce/apex/RescueAgentConsoleController.sendCommand';
+import startAgentSession from '@salesforce/apex/RescueAgentConsoleController.startAgentSession';
+import sendAgentMessage from '@salesforce/apex/RescueAgentConsoleController.sendAgentMessage';
 
 const SOURCE = 'rescueDisasterDashboard';
 const STAGE_ORDER = ['Detected', 'Understanding', 'Prioritized', 'Simulating', 'Recommended', 'Pending Approval', 'Allocating', 'Executing', 'Monitoring', 'Replanning'];
@@ -29,9 +30,17 @@ export default class RescueDisasterDashboard extends LightningElement {
     errorMessage;
     askText = '';
     chatMessages = [];
+    agentLoading = false;
+    priorityMessageVisible = false;
+    agentSessionKeys = {};
+    agentSessions = {};
+    agentSessionPromises = {};
     selectedIncidentId;
+    selectedWarehouseId;
+    showWarehouses = true;
     showGlobe = false;
     hoveredIncidentId;
+    hoveredWarehouseId;
     globeLoadError;
 
     subscription;
@@ -66,8 +75,12 @@ export default class RescueDisasterDashboard extends LightningElement {
     handleIncidentMessage(message) {
         if (message.source !== SOURCE && message.incidentId !== this.selectedIncidentId) {
             this.selectedIncidentId = message.incidentId;
+            this.selectedWarehouseId = undefined;
             this.chatMessages = [];
+            this.priorityMessageVisible = false;
             this.refreshMarkerHighlight();
+            this.focusGlobeOnIncident();
+            this.initializeIncidentAgent(message.incidentId);
         }
     }
 
@@ -76,11 +89,14 @@ export default class RescueDisasterDashboard extends LightningElement {
         this.wiredResult = result;
         if (result.data) {
             this.data = result.data;
+            (result.data.incidents || []).forEach((incident) => this.ensureAgentSessionKey(incident.Id));
             if (!this.selectedIncidentId && result.data.incidents && result.data.incidents.length) {
                 this.selectedIncidentId = this.defaultIncidentId(result.data.incidents);
+                this.initializeIncidentAgent(this.selectedIncidentId);
             }
             if (this.threeInitialized) {
                 this.rebuildMarkers();
+                this.focusGlobeOnIncident();
             }
         }
     }
@@ -92,6 +108,10 @@ export default class RescueDisasterDashboard extends LightningElement {
 
     get incidents() {
         return this.data.incidents || [];
+    }
+
+    get warehouses() {
+        return this.data.warehouses || [];
     }
 
     get hasIncidents() {
@@ -137,14 +157,27 @@ export default class RescueDisasterDashboard extends LightningElement {
     }
 
     get mapMarkers() {
-        return this.incidents
+        const incidentMarkers = this.incidents
             .filter((incident) => incident.Latitude__c != null && incident.Longitude__c != null)
             .map((incident) => ({
                 value: incident.Id,
                 location: { Latitude: incident.Latitude__c, Longitude: incident.Longitude__c },
                 title: incident.Name,
-                description: (incident.Location__c || incident.Country__c || '') + ' — ' + (incident.Severity__c || '')
+                description: (incident.Location__c || incident.Country__c || '') + ' — ' + (incident.Severity__c || ''),
+                icon: 'standard:event'
             }));
+        const warehouseMarkers = this.showWarehouses
+            ? this.warehouses
+                .filter((warehouse) => warehouse.Latitude__c != null && warehouse.Longitude__c != null)
+                .map((warehouse) => ({
+                    value: this.warehouseMarkerValue(warehouse.Id),
+                    location: { Latitude: warehouse.Latitude__c, Longitude: warehouse.Longitude__c },
+                    title: warehouse.Name,
+                    description: (warehouse.Location__c || '') + ' — Warehouse (' + (warehouse.Status__c || 'Available') + ')',
+                    icon: 'custom:custom26'
+                }))
+            : [];
+        return incidentMarkers.concat(warehouseMarkers);
     }
 
     get hasMapMarkers() {
@@ -167,18 +200,47 @@ export default class RescueDisasterDashboard extends LightningElement {
         return this.showGlobe ? 'Map View' : 'Globe View';
     }
 
+    get warehouseLegendLabel() {
+        return 'Show warehouses';
+    }
+
+    get selectedMarkerValue() {
+        return this.selectedWarehouseId ? this.warehouseMarkerValue(this.selectedWarehouseId) : this.selectedIncidentId;
+    }
+
     get globeDetailIncident() {
         const incidentId = this.hoveredIncidentId || this.selectedIncidentId;
         return this.incidents.find((incident) => incident.Id === incidentId);
     }
 
+    get globeDetailWarehouse() {
+        return this.warehouses.find((warehouse) => warehouse.Id === this.hoveredWarehouseId);
+    }
+
     get hasGlobeDetail() {
-        return this.showGlobe && !!this.globeDetailIncident;
+        return this.showGlobe && !!(this.globeDetailIncident || this.globeDetailWarehouse);
+    }
+
+    get globeDetailName() {
+        return this.globeDetailWarehouse ? this.globeDetailWarehouse.Name : this.globeDetailIncident.Name;
     }
 
     get globeDetailSubtitle() {
+        if (this.globeDetailWarehouse) {
+            return [this.globeDetailWarehouse.Location__c, 'Warehouse'].filter(Boolean).join(' — ');
+        }
         const incident = this.globeDetailIncident;
         return incident ? [incident.Disaster_Type__c, incident.Location__c || incident.Country__c].filter(Boolean).join(' — ') : '';
+    }
+
+    get globeDetailPrimaryFact() {
+        return this.globeDetailWarehouse ? this.globeDetailWarehouse.Status__c : this.globeDetailIncident.Severity__c;
+    }
+
+    get globeDetailSecondaryFact() {
+        return this.globeDetailWarehouse
+            ? 'Capacity ' + (this.globeDetailWarehouse.Operating_Capacity__c || 0) + '%'
+            : this.globeDetailIncident.Status__c;
     }
 
     get topIncident() {
@@ -224,23 +286,60 @@ export default class RescueDisasterDashboard extends LightningElement {
 
     get nearestResourceCenter() {
         const resources = this.data.resources || [];
-        if (!resources.length) {
+        const incident = this.topIncident;
+        if (!incident || !this.warehouses.length) {
             return null;
         }
-        const warehouseId = resources[0].Warehouse__c;
-        const warehouseName = resources[0].Warehouse__r ? resources[0].Warehouse__r.Name : 'Resource Center';
-        const warehouseLocation = resources[0].Warehouse__r ? resources[0].Warehouse__r.Location__c : '';
-        const forWarehouse = resources.filter((resource) => resource.Warehouse__c === warehouseId);
+        const warehouse = this.findNearestWarehouse(incident);
+        if (!warehouse) {
+            return null;
+        }
+        const forWarehouse = resources.filter((resource) => resource.Warehouse__c === warehouse.Id);
 
         return {
-            name: warehouseName,
-            location: warehouseLocation,
+            name: warehouse.Name,
+            location: warehouse.Location__c,
             breakdown: forWarehouse.map((resource) => ({
                 id: resource.Id,
                 type: resource.Resource_Type__c,
                 quantity: resource.Quantity_Available__c
             }))
         };
+    }
+
+    findNearestWarehouse(incident) {
+        if (incident.Latitude__c == null || incident.Longitude__c == null) {
+            return null;
+        }
+        return this.warehouses
+            .filter((warehouse) => warehouse.Latitude__c != null && warehouse.Longitude__c != null)
+            .map((warehouse) => ({
+                warehouse,
+                distance: this.distanceBetweenCoordinates(
+                    incident.Latitude__c,
+                    incident.Longitude__c,
+                    warehouse.Latitude__c,
+                    warehouse.Longitude__c
+                )
+            }))
+            .sort((first, second) => first.distance - second.distance)
+            .map((entry) => entry.warehouse)[0];
+    }
+
+    distanceBetweenCoordinates(firstLatitude, firstLongitude, secondLatitude, secondLongitude) {
+        const earthRadiusKm = 6371;
+        const latitudeDelta = this.toRadians(secondLatitude - firstLatitude);
+        const longitudeDelta = this.toRadians(secondLongitude - firstLongitude);
+        const firstLatitudeRadians = this.toRadians(firstLatitude);
+        const secondLatitudeRadians = this.toRadians(secondLatitude);
+        const haversine = Math.sin(latitudeDelta / 2) * Math.sin(latitudeDelta / 2)
+            + Math.cos(firstLatitudeRadians) * Math.cos(secondLatitudeRadians)
+            * Math.sin(longitudeDelta / 2) * Math.sin(longitudeDelta / 2);
+        return earthRadiusKm * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+    }
+
+    toRadians(degrees) {
+        return degrees * Math.PI / 180;
     }
 
     get hasNearestResourceCenter() {
@@ -284,8 +383,12 @@ export default class RescueDisasterDashboard extends LightningElement {
             return;
         }
         this.selectedIncidentId = incidentId;
+        this.selectedWarehouseId = undefined;
         this.chatMessages = [];
+        this.priorityMessageVisible = false;
         this.refreshMarkerHighlight();
+        this.focusGlobeOnIncident();
+        this.initializeIncidentAgent(incidentId);
         publish(this.messageContext, RESCUE_INCIDENT_CHANNEL, { incidentId, source: SOURCE });
     }
 
@@ -295,6 +398,11 @@ export default class RescueDisasterDashboard extends LightningElement {
             this.teardownGlobe();
             this.threeInitialized = false;
         }
+    }
+
+    handleShowWarehouses() {
+        this.showWarehouses = true;
+        this.refreshMarkerHighlight();
     }
 
     handleGlobeZoomIn() {
@@ -365,13 +473,47 @@ export default class RescueDisasterDashboard extends LightningElement {
         this.markerGroup = new THREE.Group();
         this.scene.add(this.markerGroup);
         this.rebuildMarkers();
+        this.focusGlobeOnIncident();
 
         this.raycaster = new THREE.Raycaster();
         this.pointer = new THREE.Vector2();
         this.renderer.domElement.addEventListener('click', (event) => this.handleCanvasClick(event));
         this.renderer.domElement.addEventListener('mousemove', (event) => this.handleCanvasHover(event));
 
+        if (window.ResizeObserver) {
+            this.resizeObserver = new window.ResizeObserver(() => this.resizeGlobe(container));
+            this.resizeObserver.observe(container);
+        }
+
         this.startRenderLoop();
+    }
+
+    focusGlobeOnIncident() {
+        const incident = this.topIncident;
+        if (!incident || incident.Latitude__c == null || incident.Longitude__c == null || !this.earthMesh || !this.markerGroup || !window.THREE) {
+            return;
+        }
+        const THREE = window.THREE;
+        const incidentPoint = this.latLonToVector3(incident.Latitude__c, incident.Longitude__c, 1).normalize();
+        const cameraDirection = new THREE.Vector3(0, 0, 1);
+        const focusRotation = new THREE.Quaternion().setFromUnitVectors(incidentPoint, cameraDirection);
+        this.earthMesh.quaternion.copy(focusRotation);
+        this.markerGroup.quaternion.copy(focusRotation);
+        if (this.controls) {
+            this.controls.target.set(0, 0, 0);
+            this.controls.update();
+        }
+    }
+
+    resizeGlobe(container) {
+        if (!this.renderer || !this.camera) {
+            return;
+        }
+        const width = container.clientWidth || 300;
+        const height = container.clientHeight || 260;
+        this.camera.aspect = width / height;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(width, height);
     }
 
     rebuildMarkers() {
@@ -392,9 +534,26 @@ export default class RescueDisasterDashboard extends LightningElement {
                 const marker = new THREE.Mesh(geometry, material);
                 marker.position.copy(position);
                 marker.userData.incidentId = incident.Id;
+                marker.userData.markerType = 'incident';
                 this.markerGroup.add(marker);
                 this.markerMeshes.push(marker);
             });
+
+        if (this.showWarehouses) {
+            this.warehouses
+                .filter((warehouse) => warehouse.Latitude__c != null && warehouse.Longitude__c != null)
+                .forEach((warehouse) => {
+                    const position = this.latLonToVector3(warehouse.Latitude__c, warehouse.Longitude__c, GLOBE_RADIUS + 1.8);
+                    const geometry = new THREE.ConeGeometry(2.2, 5, 8);
+                    const material = new THREE.MeshBasicMaterial({ color: 0x36d399 });
+                    const marker = new THREE.Mesh(geometry, material);
+                    marker.position.copy(position);
+                    marker.userData.warehouseId = warehouse.Id;
+                    marker.userData.markerType = 'warehouse';
+                    this.markerGroup.add(marker);
+                    this.markerMeshes.push(marker);
+                });
+        }
     }
 
     refreshMarkerHighlight() {
@@ -427,17 +586,30 @@ export default class RescueDisasterDashboard extends LightningElement {
     }
 
     handleCanvasClick(event) {
-        const incidentId = this.pickIncidentAt(event);
+        const marker = this.pickIncidentAt(event);
+        if (marker && marker.markerType === 'warehouse') {
+            this.hoveredWarehouseId = marker.id;
+            this.hoveredIncidentId = undefined;
+            return;
+        }
+        const incidentId = marker && marker.id;
         if (incidentId && incidentId !== this.selectedIncidentId) {
             this.selectedIncidentId = incidentId;
+            this.selectedWarehouseId = undefined;
+            this.hoveredWarehouseId = undefined;
             this.chatMessages = [];
+            this.priorityMessageVisible = false;
             this.rebuildMarkers();
+            this.focusGlobeOnIncident();
+            this.initializeIncidentAgent(incidentId);
             publish(this.messageContext, RESCUE_INCIDENT_CHANNEL, { incidentId, source: SOURCE });
         }
     }
 
     handleCanvasHover(event) {
-        this.hoveredIncidentId = this.pickIncidentAt(event);
+        const marker = this.pickIncidentAt(event);
+        this.hoveredIncidentId = marker && marker.markerType === 'incident' ? marker.id : undefined;
+        this.hoveredWarehouseId = marker && marker.markerType === 'warehouse' ? marker.id : undefined;
     }
 
     pickIncidentAt(event) {
@@ -449,7 +621,32 @@ export default class RescueDisasterDashboard extends LightningElement {
         this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
         this.raycaster.setFromCamera(this.pointer, this.camera);
         const intersections = this.raycaster.intersectObjects(this.markerMeshes);
-        return intersections.length ? intersections[0].object.userData.incidentId : undefined;
+        if (!intersections.length) {
+            return undefined;
+        }
+        const marker = intersections[0].object.userData;
+        return { markerType: marker.markerType, id: marker.markerType === 'warehouse' ? marker.warehouseId : marker.incidentId };
+    }
+
+    warehouseMarkerValue(warehouseId) {
+        return 'warehouse-' + warehouseId;
+    }
+
+    handleMapMarkerSelect(event) {
+        const markerValue = event.detail.selectedMarkerValue;
+        if (markerValue && markerValue.indexOf('warehouse-') === 0) {
+            this.selectedWarehouseId = markerValue.substring('warehouse-'.length);
+            return;
+        }
+        if (markerValue) {
+            this.selectedIncidentId = markerValue;
+            this.selectedWarehouseId = undefined;
+            this.chatMessages = [];
+            this.priorityMessageVisible = false;
+            this.focusGlobeOnIncident();
+            this.initializeIncidentAgent(markerValue);
+            publish(this.messageContext, RESCUE_INCIDENT_CHANNEL, { incidentId: markerValue, source: SOURCE });
+        }
     }
 
     teardownGlobe() {
@@ -466,6 +663,10 @@ export default class RescueDisasterDashboard extends LightningElement {
             this.renderer.domElement.remove();
             this.renderer = undefined;
         }
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+            this.resizeObserver = undefined;
+        }
         this.scene = undefined;
         this.camera = undefined;
         this.markerMeshes = [];
@@ -478,21 +679,103 @@ export default class RescueDisasterDashboard extends LightningElement {
     async handleAsk() {
         const question = (this.askText || '').trim();
         const incident = this.topIncident;
-        if (!question || !incident) {
+        if (!question || !incident || this.agentLoading) {
             return;
         }
         this.chatMessages = [...this.chatMessages, { id: Date.now() + '-user', from: 'user', text: question }];
         this.askText = '';
+        this.agentLoading = true;
 
         try {
-            const result = await sendCommand({ incidentId: incident.Id, message: question });
+            const session = await this.ensureAgentSession(incident.Id);
+            const result = await this.sendMessageToAgent(session, question);
             this.chatMessages = [...this.chatMessages, { id: Date.now() + '-agent', from: 'agent', text: result.reply }];
-            if (result.actionTaken === 'Allocated and executed' || result.actionTaken === 'Recommended') {
-                await refreshApex(this.wiredResult);
-            }
         } catch (error) {
             this.chatMessages = [...this.chatMessages, { id: Date.now() + '-error', from: 'agent', text: this.extractError(error) }];
+        } finally {
+            this.agentLoading = false;
         }
+    }
+
+    async initializeIncidentAgent(incidentId) {
+        const incident = this.incidents.find((item) => item.Id === incidentId);
+        if (!incident || this.agentSessions[incidentId] || this.agentSessionPromises[incidentId]) {
+            return;
+        }
+        const incidentPayload = {
+            profile_overview: incident.Profile_Overview__c || '',
+            latitude: incident.Latitude__c,
+            longitude: incident.Longitude__c,
+            detected_date: incident.Detected_Date__c || ''
+        };
+        const incidentMessage = JSON.stringify(incidentPayload);
+        console.log('Agent incident payload:', incidentMessage);
+        this.agentLoading = true;
+        const initialization = this.ensureAgentSession(incidentId)
+            .then((session) => this.sendMessageToAgent(session, incidentMessage))
+            .then((result) => {
+                if (this.selectedIncidentId === incidentId) {
+                    const welcome = this.agentSessions[incidentId].welcomeMessage;
+                    this.chatMessages = [
+                        ...(welcome ? [{ id: Date.now() + '-welcome', from: 'agent', text: welcome }] : []),
+                        { id: Date.now() + '-agent', from: 'agent', text: result.reply }
+                    ];
+                    this.priorityMessageVisible = true;
+                }
+            })
+            .catch((error) => {
+                if (this.selectedIncidentId === incidentId) {
+                    this.chatMessages = [{ id: Date.now() + '-error', from: 'agent', text: this.extractError(error) }];
+                }
+            })
+            .finally(() => {
+                const promises = { ...this.agentSessionPromises };
+                delete promises[incidentId];
+                this.agentSessionPromises = promises;
+                this.agentLoading = false;
+            });
+        this.agentSessionPromises = { ...this.agentSessionPromises, [incidentId]: initialization };
+    }
+
+    async sendMessageToAgent(session, message) {
+        const result = await sendAgentMessage({
+            sessionId: session.sessionId,
+            sequenceId: session.nextSequence,
+            message
+        });
+        session.nextSequence += 1;
+        return result;
+    }
+
+    ensureAgentSessionKey(incidentId) {
+        if (!this.agentSessionKeys[incidentId]) {
+            this.agentSessionKeys = {
+                ...this.agentSessionKeys,
+                [incidentId]: this.createUuid()
+            };
+        }
+        return this.agentSessionKeys[incidentId];
+    }
+
+    createUuid() {
+        if (window.crypto && window.crypto.randomUUID) {
+            return window.crypto.randomUUID();
+        }
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (character) => {
+            const random = Math.random() * 16 | 0;
+            const value = character === 'x' ? random : (random & 0x3 | 0x8);
+            return value.toString(16);
+        });
+    }
+
+    async ensureAgentSession(incidentId) {
+        if (this.agentSessions[incidentId]) {
+            return this.agentSessions[incidentId];
+        }
+        const session = await startAgentSession({ externalSessionKey: this.ensureAgentSessionKey(incidentId) });
+        const storedSession = { ...session, nextSequence: 1, welcomeShown: false };
+        this.agentSessions = { ...this.agentSessions, [incidentId]: storedSession };
+        return storedSession;
     }
 
     async handleApprove() {

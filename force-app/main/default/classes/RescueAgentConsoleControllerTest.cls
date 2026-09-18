@@ -1,5 +1,21 @@
 @IsTest
 private class RescueAgentConsoleControllerTest {
+    private class AgentApiMock implements HttpCalloutMock {
+        public HttpResponse respond(HttpRequest request) {
+            HttpResponse response = new HttpResponse();
+            response.setStatusCode(200);
+            response.setHeader('Content-Type', 'application/json');
+            if (request.getEndpoint().contains('/oauth2/token')) {
+                response.setBody('{"access_token":"test-token"}');
+            } else if (request.getEndpoint().contains('/agents/')) {
+                response.setBody('{"sessionId":"test-session","messages":[{"message":"Hello from the real agent."}]}');
+            } else {
+                response.setBody('{"messages":[{"message":"Agent response to prompt."}]}');
+            }
+            return response;
+        }
+    }
+
     @IsTest
     static void routesGenerateSimulateAndApproveCommands() {
         Warehouse__c warehouse = new Warehouse__c(Name = 'Test Warehouse', Location__c = 'Hub', Status__c = 'Operational', Operating_Capacity__c = 90);
@@ -27,5 +43,20 @@ private class RescueAgentConsoleControllerTest {
         System.assertEquals('Simulated', simulateReply.actionTaken);
         System.assertEquals('Allocated and executed', approveReply.actionTaken);
         System.assertEquals(3, [SELECT COUNT() FROM AI_Decision__c WHERE Incident__c = :incident.Id]);
+    }
+
+    @IsTest
+    static void startsSessionAndSendsSequencedMessage() {
+        Test.setMock(HttpCalloutMock.class, new AgentApiMock());
+
+        Test.startTest();
+        RescueAgentConsoleController.AgentSession session = RescueAgentConsoleController.startAgentSession('57904eb6-5352-4c5e-adf6-5f100572cf5d');
+        RescueAgentConsoleController.AgentMessageReply reply = RescueAgentConsoleController.sendAgentMessage(session.sessionId, 1, 'Show me the current incident status.');
+        Test.stopTest();
+
+        System.assertEquals('test-session', session.sessionId);
+        System.assertEquals('Hello from the real agent.', session.welcomeMessage);
+        System.assertEquals('Agent response to prompt.', reply.reply);
+        System.assertEquals(1, reply.sequenceId);
     }
 }

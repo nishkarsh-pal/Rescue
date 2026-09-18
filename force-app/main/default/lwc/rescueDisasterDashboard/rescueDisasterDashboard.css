@@ -181,6 +181,46 @@
     margin: 0;
 }
 
+.map-legend {
+    display: flex;
+    gap: 0.8rem;
+    margin: -0.1rem 0 0.6rem;
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 0;
+    background: transparent;
+    color: #3e4d5b;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.75rem;
+    padding: 0.15rem 0;
+}
+
+.legend-item:hover {
+    color: #0176d3;
+}
+
+.legend-icon {
+    display: inline-block;
+    width: 0.7rem;
+    height: 0.7rem;
+}
+
+.legend-icon-incident {
+    background: #ff4d4f;
+    border-radius: 50%;
+}
+
+.legend-icon-warehouse {
+    background: #36d399;
+    border-radius: 2px;
+    transform: rotate(45deg) scale(0.8);
+}
+
 .globe-wrap {
     position: relative;
     display: flex;

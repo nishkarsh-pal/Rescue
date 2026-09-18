@@ -60,6 +60,16 @@
                     <h2 class="card-title">Incident & Resource Center Map</h2>
                     <lightning-button label={toggleMapLabel} onclick={handleToggleGlobe}></lightning-button>
                 </div>
+                <div class="map-legend" role="group" aria-label="Map legend">
+                    <div class="legend-item">
+                        <span class="legend-icon legend-icon-incident"></span>
+                        <span>Incident</span>
+                    </div>
+                    <button class="legend-item" type="button" onclick={handleShowWarehouses} aria-pressed={showWarehouses}>
+                        <span class="legend-icon legend-icon-warehouse"></span>
+                        <span>{warehouseLegendLabel}</span>
+                    </button>
+                </div>
                 <template if:true={showGlobe}>
                     <div class="globe-wrap">
                         <div class="globe-canvas-wrap"></div>
@@ -85,11 +95,11 @@
 
                         <template if:true={hasGlobeDetail}>
                             <div class="globe-detail-card">
-                                <p class="globe-detail-name">{globeDetailIncident.Name}</p>
+                                <p class="globe-detail-name">{globeDetailName}</p>
                                 <p class="globe-detail-subtitle">{globeDetailSubtitle}</p>
                                 <div class="globe-detail-facts">
-                                    <span class="globe-detail-severity">{globeDetailIncident.Severity__c}</span>
-                                    <span>{globeDetailIncident.Status__c}</span>
+                                    <span class="globe-detail-severity">{globeDetailPrimaryFact}</span>
+                                    <span>{globeDetailSecondaryFact}</span>
                                 </div>
                             </div>
                         </template>
@@ -100,10 +110,11 @@
                         <lightning-map
                             class="map-frame"
                             map-markers={mapMarkers}
-                            selected-marker-value={selectedIncidentId}
+                            selected-marker-value={selectedMarkerValue}
                             center={mapCenter}
                             zoom-level={mapZoomLevel}
                             list-view="hidden"
+                            onmarkerselect={handleMapMarkerSelect}
                         ></lightning-map>
                     </template>
                     <template if:false={hasMapMarkers}>
@@ -120,10 +131,6 @@
                 <p class="agent-subtitle">AI Incident Response Agent</p>
 
                 <template if:true={hasTopIncident}>
-                    <div class="agent-message">
-                        I've analysed the latest incident data and identified a priority response.
-                    </div>
-
                     <div class="incident-card">
                         <p class="incident-card-title">{topIncident.Name}</p>
                         <p class="incident-card-subtitle">{topIncidentSubtitle}</p>
@@ -160,6 +167,12 @@
                         </template>
                     </div>
 
+                    <template if:true={priorityMessageVisible}>
+                        <div class="agent-message agent-priority-message">
+                            I've analysed the latest incident data and identified a priority response.
+                        </div>
+                    </template>
+
                     <div class="agent-ask">
                         <lightning-input
                             label="Ask"
@@ -167,8 +180,9 @@
                             placeholder="Ask me anything about this incident..."
                             value={askText}
                             onchange={handleAskChange}
+                            disabled={agentLoading}
                         ></lightning-input>
-                        <lightning-button-icon icon-name="utility:send" onclick={handleAsk}></lightning-button-icon>
+                        <lightning-button-icon icon-name="utility:send" onclick={handleAsk} disabled={agentLoading}></lightning-button-icon>
                     </div>
                     <p class="agent-disclaimer">AI may make mistakes. Please review critical information.</p>
                 </template>
