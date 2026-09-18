@@ -1,0 +1,3 @@
+SELECT Id, DeveloperName, Name
+FROM ConnectedApplication
+WHERE Name = 'RESCUE Web'
