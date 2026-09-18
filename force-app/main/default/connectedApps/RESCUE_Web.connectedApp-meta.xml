@@ -3,7 +3,7 @@
     <contactEmail>nishkarsh.pal@cginfinity.com</contactEmail>
     <label>RESCUE Web</label>
     <oauthConfig>
-        <callbackUrl>https://rescue.example.com/oauth/callback</callbackUrl>
+        <callbackUrl>http://127.0.0.1:5175/</callbackUrl>
         <isAdminApproved>false</isAdminApproved>
         <isClientCredentialEnabled>false</isClientCredentialEnabled>
         <isCodeCredentialEnabled>false</isCodeCredentialEnabled>
