@@ -325,6 +325,11 @@
     color: #0176d3;
 }
 
+.legend-item.selected {
+    color: #0176d3;
+    font-weight: 700;
+}
+
 .legend-icon {
     display: inline-block;
     width: 0.7rem;
