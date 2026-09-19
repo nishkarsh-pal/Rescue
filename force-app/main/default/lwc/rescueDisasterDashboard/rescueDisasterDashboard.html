@@ -45,12 +45,12 @@
                 <p class="metric-value">{metrics.activeIncidents}</p>
             </div>
             <div class="metric-card">
-                <p class="metric-label">Resources Deployed</p>
-                <p class="metric-value">{metrics.resourcesDeployed}</p>
+                <p class="metric-label">Available Resources</p>
+                <p class="metric-value">{metrics.availableResourceQuantity}</p>
             </div>
             <div class="metric-card">
                 <p class="metric-label">Avg Response Time</p>
-                <p class="metric-value">{metrics.avgEtaMinutes} mins</p>
+                <p class="metric-value">{metrics.avgEtaHours} hours</p>
             </div>
             <div class="metric-card">
                 <p class="metric-label">Locations Monitored</p>
@@ -166,30 +166,38 @@
                     <div class="incident-card">
                         <p class="incident-card-title">{topIncident.Name}</p>
                         <p class="incident-card-subtitle">{topIncidentSubtitle}</p>
-                        <dl class="incident-facts">
-                            <dt>Severity</dt>
-                            <dd>{topIncident.Severity__c}</dd>
-                            <dt>Status</dt>
-                            <dd>{topIncident.Status__c}</dd>
-                            <dt>Estimated Impact</dt>
-                            <dd>~ {topIncident.Population_Affected__c} people affected</dd>
-                        </dl>
-
-                        <p class="next-steps-title">Recommended Next Steps</p>
-                        <template for:each={nextSteps} for:item="step">
-                            <div key={step.key} class="next-step">
-                                <span class={step.numberClass}>{step.number}</span>
-                                <span>{step.label}</span>
-                            </div>
-                        </template>
-
                         <lightning-button
-                            variant="brand"
-                            label="Approve & Dispatch"
-                            class="view-plan-btn"
-                            disabled={approveDisabled}
-                            onclick={handleApprove}
+                            variant="base"
+                            label={incidentDetailsToggleLabel}
+                            class="incident-details-toggle"
+                            onclick={handleIncidentDetailsToggle}
                         ></lightning-button>
+                        <template if:true={incidentDetailsExpanded}>
+                            <dl class="incident-facts">
+                                <dt>Severity</dt>
+                                <dd>{topIncident.Severity__c}</dd>
+                                <dt>Status</dt>
+                                <dd>{topIncident.Status__c}</dd>
+                                <dt>Estimated Impact</dt>
+                                <dd>~ {topIncident.Population_Affected__c} people affected</dd>
+                            </dl>
+
+                            <p class="next-steps-title">Recommended Next Steps</p>
+                            <template for:each={nextSteps} for:item="step">
+                                <div key={step.key} class="next-step">
+                                    <span class={step.numberClass}>{step.number}</span>
+                                    <span>{step.label}</span>
+                                </div>
+                            </template>
+
+                            <lightning-button
+                                variant="brand"
+                                label="Approve & Dispatch"
+                                class="view-plan-btn"
+                                disabled={approveDisabled}
+                                onclick={handleApprove}
+                            ></lightning-button>
+                        </template>
                     </div>
 
                     <div class="agent-chat">
@@ -212,6 +220,7 @@
                             placeholder="Ask me anything about this incident..."
                             value={askText}
                             onchange={handleAskChange}
+                            onkeydown={handleAskKeydown}
                             disabled={agentLoading}
                         ></lightning-input>
                         <lightning-button-icon icon-name="utility:send" onclick={handleAsk} disabled={agentLoading}></lightning-button-icon>
@@ -222,17 +231,29 @@
 
             <template if:true={showResourceCentersView}>
             <div class="card resource-center-card">
-                <h2 class="card-title">Nearest Resource Center</h2>
                 <template if:true={hasNearestResourceCenter}>
-                    <p class="resource-center-name">{nearestResourceCenter.name}</p>
-                    <p class="resource-center-location">{nearestResourceCenter.location}</p>
+                    <div class="resource-center-header">
+                        <span class="resource-center-icon"><lightning-icon icon-name="utility:location" alternative-text="Resource center" size="small"></lightning-icon></span>
+                        <div>
+                            <h2 class="card-title">Nearest Resource Center</h2>
+                            <p class="resource-center-name">{nearestResourceCenter.name}</p>
+                            <p class="resource-center-location"><lightning-icon icon-name="utility:location" alternative-text="Location" size="xx-small"></lightning-icon>{nearestResourceCenter.location}</p>
+                        </div>
+                    </div>
                     <div class="resource-grid">
                         <template for:each={nearestResourceCenter.breakdown} for:item="item">
                             <div key={item.id} class="resource-item">
-                                <p class="resource-qty">{item.quantity}</p>
+                                <div class="resource-item-header">
+                                    <span class={item.iconClass}><lightning-icon icon-name={item.iconName} alternative-text={item.type} size="small"></lightning-icon></span>
+                                    <lightning-icon icon-name="utility:chevronright" alternative-text="View resource" size="x-small"></lightning-icon>
+                                </div>
+                                <p class="resource-qty">{item.quantityLabel}</p>
                                 <p class="resource-type">{item.type}</p>
-                                <p class="resource-available">{item.availableToAllocate} available to allocate</p>
-                                <lightning-progress-bar value={item.availabilityPercent} size="small" variant="circular" aria-label="Available to allocate"></lightning-progress-bar>
+                                <p class="resource-available"><strong>{item.availableToAllocateLabel}</strong> available to allocate</p>
+                                <div class="resource-progress-track" role="progressbar" aria-label="Available to allocate" aria-valuemin="0" aria-valuemax="100" aria-valuenow={item.availabilityPercent}>
+                                    <span class="resource-progress-fill" style={item.progressStyle}></span>
+                                </div>
+                                <div class="resource-progress-labels"><span>{item.availabilityPercent}% available</span><span>{item.availableToAllocateLabel} / {item.quantityLabel}</span></div>
                             </div>
                         </template>
                     </div>
@@ -246,7 +267,10 @@
             <template if:true={hasAllocationProposal}>
             <template if:true={showAllocationView}>
             <div class="card allocation-card">
-                <h2 class="card-title">AI Recommended Allocation</h2>
+                <div class="allocation-header">
+                    <span class="allocation-icon"><lightning-icon icon-name="utility:magicwand" alternative-text="AI recommendation" size="small"></lightning-icon></span>
+                    <h2 class="card-title">AI Recommended Allocation</h2>
+                </div>
                 <template if:true={hasAllocationBreakdown}>
                     <template for:each={allocationBreakdown} for:item="item">
                         <div key={item.id} class="allocation-row">
@@ -277,7 +301,7 @@
                         ></lightning-textarea>
                         <div class="modify-actions">
                             <lightning-button label="Cancel" onclick={handleCancelModification}></lightning-button>
-                            <lightning-button variant="brand" label="Recalculate proposal" onclick={handleSubmitModification} disabled={agentLoading}></lightning-button>
+                            <lightning-button variant="brand" label="Modify" onclick={handleSubmitModification} disabled={agentLoading}></lightning-button>
                         </div>
                     </div>
                 </template>

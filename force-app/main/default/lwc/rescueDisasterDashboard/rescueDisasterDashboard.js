@@ -42,6 +42,7 @@ export default class RescueDisasterDashboard extends LightningElement {
     askText = '';
     chatMessages = [];
     agentLoading = false;
+    incidentDetailsExpanded = false;
     isModifyMode = false;
     modificationText = '';
     priorityMessageVisible = false;
@@ -146,6 +147,10 @@ export default class RescueDisasterDashboard extends LightningElement {
         return this.incidents.length > 0;
     }
 
+    get incidentDetailsToggleLabel() {
+        return this.incidentDetailsExpanded ? 'Hide incident details' : 'Show incident details';
+    }
+
     get navigationItems() {
         return NAV_ITEMS.map((item) => ({
             ...item,
@@ -166,7 +171,7 @@ export default class RescueDisasterDashboard extends LightningElement {
     }
 
     get showAllocationView() {
-        return this.activeNavigation === 'agent-console';
+        return this.activeNavigation === 'response-plans';
     }
 
     get mainGridClass() {
@@ -179,16 +184,18 @@ export default class RescueDisasterDashboard extends LightningElement {
 
     get metrics() {
         const incidents = this.incidents;
-        const allocations = this.data.allocations || [];
         const plans = this.data.plans || [];
         const resources = this.data.resources || [];
 
         const activeIncidents = incidents.filter((incident) => incident.Status__c !== 'Resolved').length;
-        const resourcesDeployed = allocations.filter((allocation) => allocation.Status__c === 'Allocated' || allocation.Status__c === 'In Transit').length;
+        const availableResourceQuantity = resources.reduce(
+            (total, resource) => total + (Number(resource.Available_To_Allocate__c) || 0),
+            0
+        );
 
         const etaValues = plans.map((plan) => plan.Estimated_ETA_Hours__c).filter((value) => value != null);
-        const avgEtaMinutes = etaValues.length
-            ? Math.round((etaValues.reduce((sum, value) => sum + value, 0) / etaValues.length) * 60)
+        const avgEtaHours = etaValues.length
+            ? Math.round((etaValues.reduce((sum, value) => sum + Number(value), 0) / etaValues.length) * 10) / 10
             : 0;
 
         const locationSet = new Set();
@@ -197,8 +204,8 @@ export default class RescueDisasterDashboard extends LightningElement {
 
         return {
             activeIncidents,
-            resourcesDeployed,
-            avgEtaMinutes,
+            availableResourceQuantity,
+            avgEtaHours,
             locationsMonitored: locationSet.size
         };
     }
@@ -434,13 +441,28 @@ export default class RescueDisasterDashboard extends LightningElement {
         return {
             name: warehouse.Name,
             location: warehouse.Location__c,
-            breakdown: forWarehouse.map((resource) => ({
-                id: resource.Id,
-                type: resource.Resource_Type__c,
-                quantity: resource.Quantity_Available__c,
-                availableToAllocate: resource.Available_To_Allocate__c || 0,
-                availabilityPercent: resource.Quantity_Available__c ? Math.min(100, Math.round((resource.Available_To_Allocate__c || 0) / resource.Quantity_Available__c * 100)) : 0
-            }))
+            breakdown: forWarehouse.map((resource) => {
+                const availabilityPercent = resource.Quantity_Available__c
+                    ? Math.min(100, Math.round((resource.Available_To_Allocate__c || 0) / resource.Quantity_Available__c * 100))
+                    : 0;
+                const type = resource.Resource_Type__c || 'Resource';
+                const iconMap = {
+                    Food: 'utility:food_and_drink',
+                    Water: 'utility:water',
+                    Shelter: 'utility:home',
+                    Medicine: 'utility:add'
+                };
+                return {
+                    id: resource.Id,
+                    type,
+                    quantityLabel: this.formatResourceNumber(resource.Quantity_Available__c),
+                    availableToAllocateLabel: this.formatResourceNumber(resource.Available_To_Allocate__c),
+                    availabilityPercent,
+                    progressStyle: `width: ${availabilityPercent}%`,
+                    iconName: iconMap[type] || 'utility:product',
+                    iconClass: 'resource-type-icon resource-type-' + type.toLowerCase()
+                };
+            })
         };
     }
 
@@ -477,6 +499,10 @@ export default class RescueDisasterDashboard extends LightningElement {
 
     toRadians(degrees) {
         return degrees * Math.PI / 180;
+    }
+
+    formatResourceNumber(value) {
+        return Number(value || 0).toLocaleString('en-US');
     }
 
     get hasNearestResourceCenter() {
@@ -544,6 +570,8 @@ export default class RescueDisasterDashboard extends LightningElement {
         this.selectedIncidentId = incidentId;
         this.selectedWarehouseId = undefined;
         this.chatMessages = [];
+            this.incidentDetailsExpanded = false;
+        this.incidentDetailsExpanded = false;
         this.isModifyMode = false;
         this.modificationText = '';
         this.priorityMessageVisible = false;
@@ -894,6 +922,17 @@ export default class RescueDisasterDashboard extends LightningElement {
         this.askText = event.target.value;
     }
 
+    handleIncidentDetailsToggle() {
+        this.incidentDetailsExpanded = !this.incidentDetailsExpanded;
+    }
+
+    handleAskKeydown(event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            this.handleAsk();
+        }
+    }
+
     handleModificationChange(event) {
         this.modificationText = event.target.value;
     }
@@ -910,6 +949,7 @@ export default class RescueDisasterDashboard extends LightningElement {
             return;
         }
         this.chatMessages = [...this.chatMessages, { id: Date.now() + '-user', from: 'user', text: question }];
+        this.chatScrollPending = true;
         this.askText = '';
         this.agentLoading = true;
 
@@ -919,8 +959,10 @@ export default class RescueDisasterDashboard extends LightningElement {
             console.log('Agent follow-up payload:', message);
             const result = await this.sendMessageToAgent(session, message);
             this.chatMessages = [...this.chatMessages, { id: Date.now() + '-agent', from: 'agent', text: result.reply }];
+            this.chatScrollPending = true;
         } catch (error) {
             this.chatMessages = [...this.chatMessages, { id: Date.now() + '-error', from: 'agent', text: this.extractError(error) }];
+            this.chatScrollPending = true;
         } finally {
             this.agentLoading = false;
         }
