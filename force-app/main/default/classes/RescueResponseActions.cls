@@ -526,6 +526,7 @@ public with sharing class RescueResponseActions {
                 Decimal shipmentEtaHours = etaHoursForDistance(distanceKm(incident.Latitude__c, incident.Longitude__c, allocation.Relief_Resource__r.Warehouse__r.Latitude__c, allocation.Relief_Resource__r.Warehouse__r.Longitude__c));
                 shipments.add(new Shipment__c(
                     Allocation__c = allocation.Id,
+                    Incident__c = plan.Incident__c,
                     Response_Plan__c = response.Id,
                     Origin__c = allocation.Relief_Resource__r.Warehouse__r.Location__c,
                     Destination__c = incident.Location__c,

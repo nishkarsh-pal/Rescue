@@ -52,7 +52,7 @@ public with sharing class RescueCommandCenterController {
             LIMIT 100
         ];
         data.shipments = [
-            SELECT Id, Name, Response_Plan__c, Origin__c, Destination__c, Origin_Latitude__c, Origin_Longitude__c, Destination_Latitude__c, Destination_Longitude__c, Carrier__c, Route__c, ETA__c, Status__c
+            SELECT Id, Name, Incident__c, Response_Plan__c, Origin__c, Destination__c, Origin_Latitude__c, Origin_Longitude__c, Destination_Latitude__c, Destination_Longitude__c, Carrier__c, Route__c, ETA__c, Status__c
             FROM Shipment__c
             ORDER BY CreatedDate DESC
             LIMIT 30
