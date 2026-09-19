@@ -231,15 +231,17 @@ export default class RescueDisasterDashboard extends LightningElement {
     }
 
     get recentIncidents() {
-        return this.incidents.map((incident) => ({
-            id: incident.Id,
-            name: incident.Name,
-            location: incident.Location__c,
-            severity: incident.Severity__c,
-            severityClass: 'severity-badge severity-' + (incident.Severity__c ? incident.Severity__c.toLowerCase() : 'medium'),
-            timeLabel: this.formatTime(incident.Detected_Date__c || incident.Start_Date__c),
-            rowClass: incident.Id === this.selectedIncidentId ? 'incident-item selected' : 'incident-item'
-        }));
+        return this.incidents
+            .filter((incident) => this.severityFilter === 'All' || incident.Severity__c === this.severityFilter)
+            .map((incident) => ({
+                id: incident.Id,
+                name: incident.Name,
+                location: incident.Location__c,
+                severity: incident.Severity__c,
+                severityClass: 'severity-badge severity-' + (incident.Severity__c ? incident.Severity__c.toLowerCase() : 'medium'),
+                timeLabel: this.formatTime(incident.Detected_Date__c || incident.Start_Date__c),
+                rowClass: incident.Id === this.selectedIncidentId ? 'incident-item selected' : 'incident-item'
+            }));
     }
 
     get mapMarkers() {
@@ -750,6 +752,17 @@ export default class RescueDisasterDashboard extends LightningElement {
             this.controls.target.set(0, 0, 0);
             this.controls.update();
         }
+        this.camera.position.setLength(INCIDENT_FOCUS_DISTANCE);
+    }
+
+    incidentMarkerColor(severity) {
+        const colors = {
+            Critical: 0xff3b45,
+            High: 0xff8a00,
+            Medium: 0xffc928,
+            Low: 0x32c878
+        };
+        return colors[severity] || colors.Medium;
     }
 
     resizeGlobe(container) {
@@ -804,7 +817,7 @@ export default class RescueDisasterDashboard extends LightningElement {
                 const isSelected = incident.Id === this.selectedIncidentId;
                 const position = this.latLonToVector3(incident.Latitude__c, incident.Longitude__c, GLOBE_RADIUS + 1.2);
                 const geometry = new THREE.SphereGeometry(isSelected ? 1.25 : 0.72, 16, 16);
-                const material = new THREE.MeshBasicMaterial({ color: isSelected ? 0xff4d4f : 0xffb020 });
+                const material = new THREE.MeshBasicMaterial({ color: this.incidentMarkerColor(incident.Severity__c) });
                 const marker = new THREE.Mesh(geometry, material);
                 marker.position.copy(position);
                 marker.userData.incidentId = incident.Id;

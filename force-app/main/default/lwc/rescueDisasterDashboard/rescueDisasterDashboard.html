@@ -61,9 +61,23 @@
         <div class={mainGridClass}>
             <template if:true={showIncidentsView}>
             <div class="card recent-incidents">
-                <h2 class="card-title">Recent Incidents</h2>
+                <div class="recent-incidents-header">
+                    <h2 class="card-title">Recent Incidents</h2>
+                    <lightning-combobox
+                        label="Severity"
+                        variant="label-hidden"
+                        value={severityFilter}
+                        options={severityOptions}
+                        onchange={handleSeverityFilterChange}
+                    ></lightning-combobox>
+                </div>
                 <template if:false={hasIncidents}>
                     <p class="empty-state">No incidents yet.</p>
+                </template>
+                <template if:true={hasIncidents}>
+                    <template if:false={hasFilteredRecentIncidents}>
+                        <p class="empty-state">No incidents match this severity.</p>
+                    </template>
                 </template>
                 <template for:each={recentIncidents} for:item="incident">
                     <div key={incident.id} class={incident.rowClass} data-id={incident.id} onclick={handleSelectIncident}>
@@ -86,10 +100,10 @@
                     <lightning-button label={toggleMapLabel} onclick={handleToggleGlobe}></lightning-button>
                 </div>
                 <div class="map-legend" role="group" aria-label="Map legend">
-                    <div class="legend-item">
-                        <span class="legend-icon legend-icon-incident"></span>
-                        <span>Incident</span>
-                    </div>
+                    <div class="legend-item"><span class="legend-icon legend-icon-critical"></span><span>Critical</span></div>
+                    <div class="legend-item"><span class="legend-icon legend-icon-high"></span><span>High</span></div>
+                    <div class="legend-item"><span class="legend-icon legend-icon-medium"></span><span>Medium</span></div>
+                    <div class="legend-item"><span class="legend-icon legend-icon-low"></span><span>Low</span></div>
                     <button class="legend-item" type="button" onclick={handleShowWarehouses} aria-pressed={showWarehouses}>
                         <span class="legend-icon legend-icon-warehouse"></span>
                         <span>{warehouseLegendLabel}</span>
@@ -163,7 +177,7 @@
                 <p class="agent-subtitle">AI Incident Response Agent</p>
 
                 <template if:true={hasTopIncident}>
-                    <div class="incident-card">
+                    <div class={incidentCardClass}>
                         <p class="incident-card-title">{topIncident.Name}</p>
                         <p class="incident-card-subtitle">{topIncidentSubtitle}</p>
                         <lightning-button
@@ -247,13 +261,17 @@
                                     <span class={item.iconClass}><lightning-icon icon-name={item.iconName} alternative-text={item.type} size="small"></lightning-icon></span>
                                     <lightning-icon icon-name="utility:chevronright" alternative-text="View resource" size="x-small"></lightning-icon>
                                 </div>
-                                <p class="resource-qty">{item.quantityLabel}</p>
-                                <p class="resource-type">{item.type}</p>
-                                <p class="resource-available"><strong>{item.availableToAllocateLabel}</strong> available to allocate</p>
-                                <div class="resource-progress-track" role="progressbar" aria-label="Available to allocate" aria-valuemin="0" aria-valuemax="100" aria-valuenow={item.availabilityPercent}>
-                                    <span class="resource-progress-fill" style={item.progressStyle}></span>
+                                <div class="resource-item-main">
+                                    <p class="resource-type">{item.type}</p>
+                                    <p class="resource-available"><strong>{item.availableToAllocateLabel}</strong> available to allocate</p>
+                                    <div class="resource-progress-track" role="progressbar" aria-label="Available to allocate" aria-valuemin="0" aria-valuemax="100" aria-valuenow={item.availabilityPercent}>
+                                        <span class="resource-progress-fill" style={item.progressStyle}></span>
+                                    </div>
                                 </div>
-                                <div class="resource-progress-labels"><span>{item.availabilityPercent}% available</span><span>{item.availableToAllocateLabel} / {item.quantityLabel}</span></div>
+                                <div class="resource-item-meta">
+                                    <p class="resource-qty">{item.quantityLabel}</p>
+                                    <span>{item.availabilityPercent}% available</span>
+                                </div>
                             </div>
                         </template>
                     </div>
