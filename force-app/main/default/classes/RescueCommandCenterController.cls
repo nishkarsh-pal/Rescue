@@ -29,7 +29,7 @@ public with sharing class RescueCommandCenterController {
             SELECT Id, Name, Incident__c, Resource_Type__c, Quantity__c, Priority__c, Required_By__c, Status__c
             FROM Resource_Request__c
             ORDER BY CreatedDate DESC
-            LIMIT 50
+            LIMIT 2000
         ];
         data.resources = [
             SELECT Id, Name, Resource_Type__c, Quantity_Available__c, Available_To_Allocate__c, Warehouse__c, Warehouse__r.Name, Warehouse__r.Location__c, Status__c, Expiration_Date__c
@@ -49,7 +49,7 @@ public with sharing class RescueCommandCenterController {
                    Quantity__c, Status__c
             FROM Allocation__c
             ORDER BY CreatedDate DESC
-            LIMIT 100
+            LIMIT 2000
         ];
         data.shipments = [
             SELECT Id, Name, Incident__c, Response_Plan__c, Origin__c, Destination__c, Origin_Latitude__c, Origin_Longitude__c, Destination_Latitude__c, Destination_Longitude__c, Carrier__c, Route__c, ETA__c, Status__c

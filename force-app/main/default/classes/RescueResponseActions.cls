@@ -542,6 +542,13 @@ public with sharing class RescueResponseActions {
             if (!allocations.isEmpty()) update allocations;
             update resources.values();
             if (!shipments.isEmpty()) insert shipments;
+            Set<Id> requestIds = new Set<Id>();
+            for (Allocation__c allocation : allocations) if (allocation.Resource_Request__c != null) requestIds.add(allocation.Resource_Request__c);
+            if (!requestIds.isEmpty()) {
+                List<Resource_Request__c> requestsToUpdate = new List<Resource_Request__c>();
+                for (Id requestId : requestIds) requestsToUpdate.add(new Resource_Request__c(Id = requestId, Status__c = 'Allocated'));
+                update requestsToUpdate;
+            }
             response.Total_Resources__c = total; update response;
             plan.Status__c = 'Executed'; update plan;
             output.ExecutionStatus = 'Success'; output.ResponsePlanId = String.valueOf(response.Id); output.ShipmentIds = joinIds(shipments); output.ReservedResources = '[' + String.join(reserved, ',') + ']'; output.InventoryConflicts = '[]'; output.Message = 'Approved allocation executed successfully.';
