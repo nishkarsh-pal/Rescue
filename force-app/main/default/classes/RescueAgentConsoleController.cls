@@ -7,6 +7,7 @@
 public with sharing class RescueAgentConsoleController {
 
     private static final String CONFIG_NAME = 'Default';
+    private static final Integer AGENT_CALLOUT_TIMEOUT_MS = 120000;
 
     public class AgentReply {
         @AuraEnabled public String reply;
@@ -36,6 +37,7 @@ public with sharing class RescueAgentConsoleController {
         HttpRequest request = new HttpRequest();
         request.setEndpoint(config.Api_Endpoint__c + '/agents/' + config.Agent_Id__c + '/sessions');
         request.setMethod('POST');
+        request.setTimeout(AGENT_CALLOUT_TIMEOUT_MS);
         request.setHeader('Accept', 'application/json');
         request.setHeader('Content-Type', 'application/json');
         request.setHeader('Authorization', 'Bearer ' + accessToken);
@@ -63,6 +65,7 @@ public with sharing class RescueAgentConsoleController {
         HttpRequest request = new HttpRequest();
         request.setEndpoint(config.Api_Endpoint__c + '/sessions/' + EncodingUtil.urlEncode(sessionId, 'UTF-8') + '/messages');
         request.setMethod('POST');
+        request.setTimeout(AGENT_CALLOUT_TIMEOUT_MS);
         request.setHeader('Accept', 'application/json');
         request.setHeader('Content-Type', 'application/json');
         request.setHeader('Authorization', 'Bearer ' + requestAccessToken(config));
@@ -166,6 +169,7 @@ public with sharing class RescueAgentConsoleController {
         HttpRequest request = new HttpRequest();
         request.setEndpoint(config.Token_Endpoint__c);
         request.setMethod('POST');
+        request.setTimeout(AGENT_CALLOUT_TIMEOUT_MS);
         request.setHeader('Accept', 'application/json');
         request.setHeader('Content-Type', 'application/x-www-form-urlencoded');
         request.setBody('grant_type=client_credentials'
@@ -185,7 +189,7 @@ public with sharing class RescueAgentConsoleController {
         try {
             response = new Http().send(request);
         } catch (System.CalloutException error) {
-            throw new AuraHandledException('Agentforce callout failed: ' + error.getMessage());
+            throw new AuraHandledException('Agentforce callout timed out or failed at ' + request.getEndpoint() + ': ' + error.getMessage());
         }
         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
             throw new AuraHandledException('Agentforce API returned HTTP ' + response.getStatusCode() + ': ' + response.getBody());

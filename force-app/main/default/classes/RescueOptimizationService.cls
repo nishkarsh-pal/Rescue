@@ -132,7 +132,7 @@ public with sharing class RescueOptimizationService {
         }
 
         Response_Plan__c plan = [
-            SELECT Id, Incident__c, Incident__r.Name, Incident__r.Location__c, Estimated_ETA_Hours__c, Confidence__c
+            SELECT Id, Incident__c, Incident__r.Name, Incident__r.Location__c, Incident__r.Latitude__c, Incident__r.Longitude__c, Estimated_ETA_Hours__c, Confidence__c
             FROM Response_Plan__c
             WHERE Id = :responsePlanId
             LIMIT 1
@@ -143,7 +143,8 @@ public with sharing class RescueOptimizationService {
 
         List<Allocation__c> allocations = [
             SELECT Id, Incident__c, Resource_Request__c, Relief_Resource__c, Relief_Resource__r.Name,
-                   Relief_Resource__r.Quantity_Available__c, Relief_Resource__r.Warehouse__r.Location__c, Quantity__c
+                   Relief_Resource__r.Quantity_Available__c, Relief_Resource__r.Reserved_Quantity__c, Relief_Resource__r.Warehouse__r.Location__c,
+                   Relief_Resource__r.Warehouse__r.Latitude__c, Relief_Resource__r.Warehouse__r.Longitude__c, Quantity__c
             FROM Allocation__c
             WHERE Response_Plan__c = :responsePlanId
         ];
@@ -156,11 +157,10 @@ public with sharing class RescueOptimizationService {
             allocation.Status__c = 'Allocated';
             requestIds.add(allocation.Resource_Request__c);
 
-            Decimal remaining = (allocation.Relief_Resource__r.Quantity_Available__c == null ? 0 : allocation.Relief_Resource__r.Quantity_Available__c) - allocation.Quantity__c;
             resourcesToUpdate.put(allocation.Relief_Resource__c, new Relief_Resource__c(
                 Id = allocation.Relief_Resource__c,
-                Quantity_Available__c = Math.max(0, remaining),
-                Status__c = remaining <= 0 ? 'Depleted' : 'Reserved'
+                Reserved_Quantity__c = (allocation.Relief_Resource__r.Reserved_Quantity__c == null ? 0 : allocation.Relief_Resource__r.Reserved_Quantity__c) + allocation.Quantity__c,
+                Status__c = 'Reserved'
             ));
 
             shipments.add(new Shipment__c(
@@ -168,6 +168,10 @@ public with sharing class RescueOptimizationService {
                 Response_Plan__c = responsePlanId,
                 Origin__c = allocation.Relief_Resource__r.Warehouse__r.Location__c,
                 Destination__c = plan.Incident__r.Location__c,
+                Origin_Latitude__c = allocation.Relief_Resource__r.Warehouse__r.Latitude__c,
+                Origin_Longitude__c = allocation.Relief_Resource__r.Warehouse__r.Longitude__c,
+                Destination_Latitude__c = plan.Incident__r.Latitude__c,
+                Destination_Longitude__c = plan.Incident__r.Longitude__c,
                 Carrier__c = 'Emergency Logistics Network',
                 Route__c = 'Fastest feasible route with active route-constraint monitoring.',
                 ETA__c = System.now().addHours(Integer.valueOf(plan.Estimated_ETA_Hours__c == null ? 6 : plan.Estimated_ETA_Hours__c.intValue())),

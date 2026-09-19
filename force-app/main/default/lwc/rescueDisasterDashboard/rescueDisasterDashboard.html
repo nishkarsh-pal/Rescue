@@ -151,14 +151,13 @@
                             </div>
                         </template>
 
-                        <template if:true={canApproveTopPlan}>
-                            <lightning-button
-                                variant="brand"
-                                label="View AI Response Plan"
-                                class="view-plan-btn"
-                                onclick={handleApprove}
-                            ></lightning-button>
-                        </template>
+                        <lightning-button
+                            variant="brand"
+                            label="Approve & Dispatch"
+                            class="view-plan-btn"
+                            disabled={approveDisabled}
+                            onclick={handleApprove}
+                        ></lightning-button>
                     </div>
 
                     <div class="agent-chat">
@@ -167,9 +166,10 @@
                         </template>
                     </div>
 
-                    <template if:true={priorityMessageVisible}>
-                        <div class="agent-message agent-priority-message">
-                            I've analysed the latest incident data and identified a priority response.
+                    <template if:true={agentLoading}>
+                        <div class="agent-loading" role="status">
+                            <span class="agent-loading-dot"></span>
+                            <span>RESCUE is processing this incident...</span>
                         </div>
                     </template>
 
@@ -198,6 +198,8 @@
                             <div key={item.id} class="resource-item">
                                 <p class="resource-qty">{item.quantity}</p>
                                 <p class="resource-type">{item.type}</p>
+                                <p class="resource-available">{item.availableToAllocate} available to allocate</p>
+                                <lightning-progress-bar value={item.availabilityPercent} size="small" variant="circular" aria-label="Available to allocate"></lightning-progress-bar>
                             </div>
                         </template>
                     </div>
@@ -207,23 +209,70 @@
                 </template>
             </div>
 
+            <template if:true={hasAllocationProposal}>
             <div class="card allocation-card">
                 <h2 class="card-title">AI Recommended Allocation</h2>
                 <template if:true={hasAllocationBreakdown}>
                     <template for:each={allocationBreakdown} for:item="item">
                         <div key={item.id} class="allocation-row">
-                            <span class="allocation-type">{item.type}</span>
-                            <span class="allocation-qty">{item.allocatedQty} of {item.requestedQty} available</span>
+                            <div class="allocation-main">
+                                <span class="allocation-type">{item.type}</span>
+                                <span class="allocation-resource">{item.resourceName}</span>
+                                <span class="allocation-source">From {item.warehouseName}<template if:true={item.warehouseLocation}> · {item.warehouseLocation}</template></span>
+                            </div>
+                            <div class="allocation-meta">
+                                <span class="allocation-qty">{item.allocatedQty} of {item.requestedQty}</span>
+                                <span class="allocation-status">{item.status}</span>
+                            </div>
                         </div>
                     </template>
                 </template>
                 <template if:false={hasAllocationBreakdown}>
                     <p class="empty-state">No allocation recommendation yet.</p>
                 </template>
+                <template if:true={isModifyMode}>
+                    <div class="modify-panel">
+                        <div class="modify-panel-heading">Adjust this proposal</div>
+                        <p class="modify-panel-help">Describe the change. RESCUE will recalculate quantities, sources, coverage, risk, and ETA.</p>
+                        <lightning-textarea
+                            label="Modification instructions"
+                            value={modificationText}
+                            onchange={handleModificationChange}
+                            placeholder="Example: Prioritize medical supplies, use the nearest warehouse, and keep water allocation unchanged."
+                        ></lightning-textarea>
+                        <div class="modify-actions">
+                            <lightning-button label="Cancel" onclick={handleCancelModification}></lightning-button>
+                            <lightning-button variant="brand" label="Recalculate proposal" onclick={handleSubmitModification} disabled={agentLoading}></lightning-button>
+                        </div>
+                    </div>
+                </template>
                 <div class="allocation-actions">
-                    <lightning-button label="Modify Plan" onclick={handleModifyPlan}></lightning-button>
+                    <lightning-button label="Modify Plan" onclick={handleModifyPlan} disabled={isModifyMode}></lightning-button>
                     <lightning-button variant="brand" label="Approve & Dispatch" disabled={approveDisabled} onclick={handleApprove}></lightning-button>
                 </div>
+            </div>
+            </template>
+
+            <div class="card shipment-card">
+                <h2 class="card-title">Shipments</h2>
+                <template if:true={hasShipments}>
+                    <template for:each={shipments} for:item="shipment">
+                        <div key={shipment.Id} class="shipment-row">
+                            <div class="shipment-main">
+                                <span class="shipment-name">{shipment.Name}</span>
+                                <span class="shipment-route">{shipment.Origin__c} to {shipment.Destination__c}</span>
+                                <span class="shipment-carrier">{shipment.Carrier__c}</span>
+                            </div>
+                            <div class="shipment-meta">
+                                <span class="shipment-status">{shipment.Status__c}</span>
+                                <span class="shipment-eta">ETA {shipment.etaLabel}</span>
+                            </div>
+                        </div>
+                    </template>
+                </template>
+                <template if:false={hasShipments}>
+                    <p class="empty-state">No shipments created for this response plan.</p>
+                </template>
             </div>
         </div>
     </div>
