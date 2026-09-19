@@ -224,6 +224,7 @@ function GoogleIncidentMap({ incidents, selected, onSelect }) {
   const mapElement = useRef(null)
   const mapInstance = useRef(null)
   const markers = useRef([])
+  const routeLines = useRef([])
   const [mapType, setMapType] = useState('roadmap')
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
   const [mapError, setMapError] = useState(() => apiKey ? '' : 'Add VITE_GOOGLE_MAPS_API_KEY to web-app/.env to load Google Maps.')
@@ -272,6 +273,7 @@ function GoogleIncidentMap({ incidents, selected, onSelect }) {
   useEffect(() => {
     if (!mapInstance.current || !window.google?.maps) return
     markers.current.forEach((marker) => marker.setMap(null))
+    routeLines.current.forEach((line) => line.setMap(null))
     markers.current = incidents.map((incident) => {
       const marker = new window.google.maps.Marker({
         map: mapInstance.current,
@@ -283,21 +285,70 @@ function GoogleIncidentMap({ incidents, selected, onSelect }) {
       marker.addListener('click', () => onSelect(incident.id))
       return marker
     })
+    routeLines.current = incidents.map((incident) => {
+      const route = getIncidentRoute(incident)
+      const line = new window.google.maps.Polyline({
+        map: mapInstance.current,
+        path: route.path,
+        geodesic: true,
+        strokeColor: incident.id === selected.id ? '#f6b73c' : '#54c9b4',
+        strokeOpacity: incident.id === selected.id ? 0.95 : 0.55,
+        strokeWeight: incident.id === selected.id ? 4 : 2,
+        icons: [{
+          icon: { path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3 },
+          offset: '62%',
+        }],
+        zIndex: incident.id === selected.id ? 5 : 1,
+      })
+      return line
+    })
 
     const selectedPosition = getIncidentPosition(selected)
     mapInstance.current.setCenter(selectedPosition)
     mapInstance.current.setZoom(incidentCountForZoom(incidents.length))
-    return () => markers.current.forEach((marker) => marker.setMap(null))
+    return () => {
+      markers.current.forEach((marker) => marker.setMap(null))
+      routeLines.current.forEach((line) => line.setMap(null))
+    }
   }, [incidents, selected, onSelect])
+
+  const fallbackRoutes = incidents.map((incident, index) => ({
+    incident,
+    path: getFallbackRoutePath(index),
+    route: getIncidentRoute(incident),
+  }))
 
   return <div className="google-map-shell">
     <div ref={mapElement} className="map-visual google-map" role="img" aria-label="Google map showing active RESCUE incidents" />
-    {(!mapReady || mapError) && <div className="google-map-fallback" role="img" aria-label="Satellite preview of active RESCUE incidents"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Equirectangular_projection_SW.jpg/1280px-Equirectangular_projection_SW.jpg" alt="Satellite preview of the global incident network" /><div className="fallback-grid" />{incidents.map((incident, index) => <button key={incident.id} className={`fallback-pin pin-${index + 1} ${incident.id === selected.id ? 'selected' : ''}`} onClick={() => onSelect(incident.id)} aria-label={`Select ${incident.name}`} />)}</div>}
+    {(!mapReady || mapError) && <div className="google-map-fallback" role="img" aria-label="Satellite preview of active RESCUE incidents"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Equirectangular_projection_SW.jpg/1280px-Equirectangular_projection_SW.jpg" alt="Satellite preview of the global incident network" /><div className="fallback-grid" /><svg className="fallback-routes" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">{fallbackRoutes.map(({ incident, path }) => <path key={incident.id} d={path} className={incident.id === selected.id ? 'route selected' : 'route'} />)}</svg>{incidents.map((incident, index) => <button key={incident.id} className={`fallback-pin pin-${index + 1} ${incident.id === selected.id ? 'selected' : ''}`} onClick={() => onSelect(incident.id)} aria-label={`Select ${incident.name}`} />)}</div>}
     <div className="google-map-toolbar"><button className={mapType === 'roadmap' ? 'active' : ''} onClick={() => setMapType('roadmap')}>Map</button><button className={mapType === 'satellite' ? 'active' : ''} onClick={() => setMapType('satellite')}>Satellite</button></div>
     <div className="map-incident-card"><strong>{selected.name}</strong><span>{selected.type} — {selected.country}</span><div><b className={`severity-text ${selected.severity.toLowerCase()}`}>{selected.severity}</b><span>{selected.status}</span></div></div>
-    <span className="map-label">Global operations<small>{incidents.length} active impact zones · drag to move</small></span><div className="map-status"><Radio size={15} /> Live incident network</div>
+    <span className="map-label">Global operations<small>{incidents.length} active impact zones · {incidents.length} response routes</small></span><div className="map-status"><Radio size={15} /> Live incident network</div>
     {mapError && <div className="map-error"><AlertTriangle size={16} /><span>Preview map active. {mapError}</span></div>}
   </div>
+}
+
+function getIncidentRoute(incident) {
+  const hubs = {
+    Türkiye: { lat: 50.45, lng: 30.52, name: 'Eastern Hub' },
+    Guatemala: { lat: 25.76, lng: -100.32, name: 'Americas Hub' },
+    Philippines: { lat: 14.6, lng: 120.98, name: 'Pacific Hub' },
+    Bangladesh: { lat: 22.35, lng: 88.36, name: 'South Asia Hub' },
+    Somalia: { lat: 1.29, lng: 36.82, name: 'East Africa Hub' },
+  }
+  const destination = getIncidentPosition(incident)
+  const origin = hubs[incident.country] || { lat: 18, lng: 18, name: 'Regional Hub' }
+  return { origin, destination, path: [origin, destination] }
+}
+
+function getFallbackRoutePath(index) {
+  const origins = [[17, 76], [24, 73], [78, 77], [70, 22], [43, 67], [30, 76]]
+  const destinations = [[56, 43], [47, 35], [35, 42], [75, 48], [63, 30], [51, 60]]
+  const [originX, originY] = origins[index % origins.length]
+  const [destinationX, destinationY] = destinations[index % destinations.length]
+  const bendX = (originX + destinationX) / 2 + (index % 2 ? 8 : -7)
+  const bendY = (originY + destinationY) / 2 - 12
+  return `M ${originX} ${originY} Q ${bendX} ${bendY} ${destinationX} ${destinationY}`
 }
 
 function loadGoogleMaps(apiKey) {

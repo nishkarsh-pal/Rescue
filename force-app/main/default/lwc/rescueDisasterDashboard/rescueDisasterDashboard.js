@@ -11,6 +11,7 @@ import sendAgentMessage from '@salesforce/apex/RescueAgentConsoleController.send
 const SOURCE = 'rescueDisasterDashboard';
 const STAGE_ORDER = ['Detected', 'Understanding', 'Prioritized', 'Simulating', 'Recommended', 'Pending Approval', 'Allocating', 'Executing', 'Monitoring', 'Replanning'];
 const GLOBE_RADIUS = 50;
+const DEFAULT_GLOBE_DISTANCE = 124;
 const MIN_ZOOM_DISTANCE = 70;
 const MAX_ZOOM_DISTANCE = 220;
 
@@ -19,6 +20,18 @@ const NEXT_STEPS = [
     { key: 'logistics', label: 'Confirm logistics feasibility and ETA', stage: 'Pending Approval' },
     { key: 'approve', label: 'Human approve the response plan', stage: 'Allocating' },
     { key: 'dispatch', label: 'Allocate resources and dispatch shipments', stage: 'Executing' }
+];
+
+const NAV_ITEMS = [
+    { key: 'home', label: 'Home', icon: 'utility:home' },
+    { key: 'incidents', label: 'Incidents', icon: 'utility:warning' },
+    { key: 'resource-centers', label: 'Resource Centers', icon: 'utility:location' },
+    { key: 'resources', label: 'Resources', icon: 'utility:product' },
+    { key: 'response-plans', label: 'Response Plans', icon: 'utility:task' },
+    { key: 'shipments', label: 'Shipments', icon: 'utility:truck' },
+    { key: 'reports', label: 'Reports', icon: 'utility:chart' },
+    { key: 'agent-console', label: 'Agent Console', icon: 'utility:einstein' },
+    { key: 'settings', label: 'Settings', icon: 'utility:settings' }
 ];
 
 export default class RescueDisasterDashboard extends LightningElement {
@@ -41,10 +54,12 @@ export default class RescueDisasterDashboard extends LightningElement {
     selectedIncidentId;
     selectedWarehouseId;
     showWarehouses = true;
-    showGlobe = false;
+    showGlobe = true;
     hoveredIncidentId;
     hoveredWarehouseId;
     globeLoadError;
+    isNavigationOpen = false;
+    activeNavigation = 'home';
 
     subscription;
     threeInitialized = false;
@@ -55,6 +70,7 @@ export default class RescueDisasterDashboard extends LightningElement {
     controls;
     animationFrameId;
     markerMeshes = [];
+    routeGroup;
     resizeObserver;
 
     @wire(MessageContext) messageContext;
@@ -128,6 +144,37 @@ export default class RescueDisasterDashboard extends LightningElement {
 
     get hasIncidents() {
         return this.incidents.length > 0;
+    }
+
+    get navigationItems() {
+        return NAV_ITEMS.map((item) => ({
+            ...item,
+            className: item.key === this.activeNavigation ? 'drawer-nav-item active' : 'drawer-nav-item'
+        }));
+    }
+
+    get showIncidentsView() {
+        return this.activeNavigation === 'incidents';
+    }
+
+    get showResourceCentersView() {
+        return this.activeNavigation === 'resource-centers';
+    }
+
+    get showShipmentsView() {
+        return this.activeNavigation === 'shipments';
+    }
+
+    get showAllocationView() {
+        return this.activeNavigation === 'agent-console';
+    }
+
+    get mainGridClass() {
+        return this.hasSidebarContentView ? 'main-grid sidebar-content-layout' : 'main-grid';
+    }
+
+    get hasSidebarContentView() {
+        return this.showIncidentsView || this.showResourceCentersView || this.showShipmentsView || this.showAllocationView;
     }
 
     get metrics() {
@@ -507,6 +554,19 @@ export default class RescueDisasterDashboard extends LightningElement {
         publish(this.messageContext, RESCUE_INCIDENT_CHANNEL, { incidentId, source: SOURCE });
     }
 
+    handleNavigationToggle() {
+        this.isNavigationOpen = !this.isNavigationOpen;
+    }
+
+    handleNavigationClose() {
+        this.isNavigationOpen = false;
+    }
+
+    handleNavigationSelect(event) {
+        this.activeNavigation = event.currentTarget.dataset.navigation;
+        this.isNavigationOpen = false;
+    }
+
     handleToggleGlobe() {
         this.showGlobe = !this.showGlobe;
         if (!this.showGlobe) {
@@ -558,7 +618,7 @@ export default class RescueDisasterDashboard extends LightningElement {
 
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 2000);
-        this.camera.position.set(0, 0, 140);
+        this.camera.position.set(0, 0, DEFAULT_GLOBE_DISTANCE);
 
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         this.renderer.setSize(width, height);
@@ -587,6 +647,8 @@ export default class RescueDisasterDashboard extends LightningElement {
 
         this.markerGroup = new THREE.Group();
         this.scene.add(this.markerGroup);
+        this.routeGroup = new THREE.Group();
+        this.scene.add(this.routeGroup);
         this.rebuildMarkers();
         this.focusGlobeOnIncident();
 
@@ -614,6 +676,7 @@ export default class RescueDisasterDashboard extends LightningElement {
         const focusRotation = new THREE.Quaternion().setFromUnitVectors(incidentPoint, cameraDirection);
         this.earthMesh.quaternion.copy(focusRotation);
         this.markerGroup.quaternion.copy(focusRotation);
+        this.routeGroup.quaternion.copy(focusRotation);
         if (this.controls) {
             this.controls.target.set(0, 0, 0);
             this.controls.update();
@@ -632,19 +695,46 @@ export default class RescueDisasterDashboard extends LightningElement {
     }
 
     rebuildMarkers() {
-        if (!this.markerGroup || !window.THREE) {
+        if (!this.markerGroup || !this.routeGroup || !window.THREE) {
             return;
         }
         const THREE = window.THREE;
         this.markerGroup.clear();
+        this.routeGroup.clear();
         this.markerMeshes = [];
 
         this.incidents
             .filter((incident) => incident.Latitude__c != null && incident.Longitude__c != null)
             .forEach((incident) => {
+                const warehouse = this.findNearestWarehouse(incident);
+                if (!warehouse || warehouse.Latitude__c == null || warehouse.Longitude__c == null) {
+                    return;
+                }
+                const start = this.latLonToVector3(warehouse.Latitude__c, warehouse.Longitude__c, GLOBE_RADIUS + 1.2);
+                const end = this.latLonToVector3(incident.Latitude__c, incident.Longitude__c, GLOBE_RADIUS + 1.2);
+                const midpoint = start.clone().add(end).normalize().multiplyScalar(GLOBE_RADIUS + 8);
+                const curve = new THREE.QuadraticBezierCurve3(start, midpoint, end);
+                const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(36));
+                const material = new THREE.LineDashedMaterial({
+                    color: incident.Id === this.selectedIncidentId ? 0xffc14d : 0x54d6c0,
+                    dashSize: incident.Id === this.selectedIncidentId ? 1.6 : 1.1,
+                    gapSize: incident.Id === this.selectedIncidentId ? 0.7 : 0.9,
+                    linewidth: incident.Id === this.selectedIncidentId ? 2 : 1,
+                    transparent: true,
+                    opacity: incident.Id === this.selectedIncidentId ? 1 : 0.72
+                });
+                const route = new THREE.Line(geometry, material);
+                route.computeLineDistances();
+                route.userData.incidentId = incident.Id;
+                this.routeGroup.add(route);
+            });
+
+        this.incidents
+            .filter((incident) => incident.Latitude__c != null && incident.Longitude__c != null)
+            .forEach((incident) => {
                 const isSelected = incident.Id === this.selectedIncidentId;
-                const position = this.latLonToVector3(incident.Latitude__c, incident.Longitude__c, GLOBE_RADIUS + 1.5);
-                const geometry = new THREE.SphereGeometry(isSelected ? 2.2 : 1.4, 12, 12);
+                const position = this.latLonToVector3(incident.Latitude__c, incident.Longitude__c, GLOBE_RADIUS + 1.2);
+                const geometry = new THREE.SphereGeometry(isSelected ? 1.25 : 0.72, 16, 16);
                 const material = new THREE.MeshBasicMaterial({ color: isSelected ? 0xff4d4f : 0xffb020 });
                 const marker = new THREE.Mesh(geometry, material);
                 marker.position.copy(position);
@@ -652,17 +742,27 @@ export default class RescueDisasterDashboard extends LightningElement {
                 marker.userData.markerType = 'incident';
                 this.markerGroup.add(marker);
                 this.markerMeshes.push(marker);
+                if (isSelected) {
+                    const ring = new THREE.Mesh(
+                        new THREE.TorusGeometry(2.1, 0.18, 8, 24),
+                        new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.9 })
+                    );
+                    ring.position.copy(position);
+                    ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), position.clone().normalize());
+                    this.markerGroup.add(ring);
+                }
             });
 
         if (this.showWarehouses) {
             this.warehouses
                 .filter((warehouse) => warehouse.Latitude__c != null && warehouse.Longitude__c != null)
                 .forEach((warehouse) => {
-                    const position = this.latLonToVector3(warehouse.Latitude__c, warehouse.Longitude__c, GLOBE_RADIUS + 1.8);
-                    const geometry = new THREE.ConeGeometry(2.2, 5, 8);
+                    const position = this.latLonToVector3(warehouse.Latitude__c, warehouse.Longitude__c, GLOBE_RADIUS + 1.1);
+                    const geometry = new THREE.OctahedronGeometry(0.62, 0);
                     const material = new THREE.MeshBasicMaterial({ color: 0x36d399 });
                     const marker = new THREE.Mesh(geometry, material);
                     marker.position.copy(position);
+                    marker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), position.clone().normalize());
                     marker.userData.warehouseId = warehouse.Id;
                     marker.userData.markerType = 'warehouse';
                     this.markerGroup.add(marker);
@@ -786,6 +886,7 @@ export default class RescueDisasterDashboard extends LightningElement {
         }
         this.scene = undefined;
         this.camera = undefined;
+        this.routeGroup = undefined;
         this.markerMeshes = [];
     }
 

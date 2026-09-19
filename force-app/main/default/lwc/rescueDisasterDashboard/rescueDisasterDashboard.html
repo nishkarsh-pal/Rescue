@@ -1,5 +1,28 @@
 <template>
     <div class="dashboard">
+        <aside class="navigation-drawer" aria-label="RESCUE navigation">
+                <div class="drawer-header">
+                    <div>
+                        <span class="drawer-kicker">RESCUE</span>
+                        <h2>Operations menu</h2>
+                    </div>
+                </div>
+                <nav class="drawer-nav">
+                    <p class="drawer-section-label">Operations</p>
+                    <template for:each={navigationItems} for:item="item">
+                        <button key={item.key} class={item.className} type="button" data-navigation={item.key} onclick={handleNavigationSelect}>
+                            <lightning-icon icon-name={item.icon} alternative-text="" size="x-small"></lightning-icon>
+                            <span>{item.label}</span>
+                            <template if:true={item.key}>
+                                <lightning-icon icon-name="utility:chevronright" alternative-text="" size="xx-small"></lightning-icon>
+                            </template>
+                        </button>
+                    </template>
+                </nav>
+                <div class="drawer-status"><span></span><div><strong>System online</strong><small>All services operational</small></div></div>
+                <div class="drawer-footer"><span class="drawer-avatar">RP</span><div><strong>Response lead</strong><small>Emergency operations</small></div></div>
+        </aside>
+
         <div class="page-header">
             <div>
                 <p class="eyebrow">Emergency Operations</p>
@@ -35,7 +58,8 @@
             </div>
         </div>
 
-        <div class="main-grid">
+        <div class={mainGridClass}>
+            <template if:true={showIncidentsView}>
             <div class="card recent-incidents">
                 <h2 class="card-title">Recent Incidents</h2>
                 <template if:false={hasIncidents}>
@@ -54,6 +78,7 @@
                     </div>
                 </template>
             </div>
+            </template>
 
             <div class="card map-card">
                 <div class="map-card-header">
@@ -69,6 +94,10 @@
                         <span class="legend-icon legend-icon-warehouse"></span>
                         <span>{warehouseLegendLabel}</span>
                     </button>
+                    <div class="legend-item">
+                        <span class="legend-icon legend-icon-route"></span>
+                        <span>Response route</span>
+                    </div>
                 </div>
                 <template if:true={showGlobe}>
                     <div class="globe-wrap">
@@ -125,8 +154,11 @@
 
             <div class="card agent-panel">
                 <div class="agent-header">
-                    <span class="agent-title">Agentforce</span>
-                    <span class="agent-badge">Beta</span>
+                    <span class="agent-logo"><lightning-icon icon-name="utility:einstein" alternative-text="AI Agent" size="small"></lightning-icon></span>
+                    <div class="agent-heading-copy">
+                        <div class="agent-title-row"><span class="agent-title">AI Agent</span><span class="agent-badge">Agentforce</span></div>
+                        <span class="agent-status"><span></span>Online</span>
+                    </div>
                 </div>
                 <p class="agent-subtitle">AI Incident Response Agent</p>
 
@@ -188,6 +220,7 @@
                 </template>
             </div>
 
+            <template if:true={showResourceCentersView}>
             <div class="card resource-center-card">
                 <h2 class="card-title">Nearest Resource Center</h2>
                 <template if:true={hasNearestResourceCenter}>
@@ -208,8 +241,10 @@
                     <p class="empty-state">No resource centers seeded yet.</p>
                 </template>
             </div>
+            </template>
 
             <template if:true={hasAllocationProposal}>
+            <template if:true={showAllocationView}>
             <div class="card allocation-card">
                 <h2 class="card-title">AI Recommended Allocation</h2>
                 <template if:true={hasAllocationBreakdown}>
@@ -252,7 +287,9 @@
                 </div>
             </div>
             </template>
+            </template>
 
+            <template if:true={showShipmentsView}>
             <div class="card shipment-card">
                 <h2 class="card-title">Shipments</h2>
                 <template if:true={hasShipments}>
@@ -274,6 +311,7 @@
                     <p class="empty-state">No shipments created for this response plan.</p>
                 </template>
             </div>
+            </template>
         </div>
     </div>
 </template>
