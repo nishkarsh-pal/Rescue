@@ -1,8 +1,13 @@
+:host {
+    display: block;
+    background: #061426;
+}
+
 .dashboard {
     position: relative;
     min-height: 100vh;
     margin-top: -5rem;
-    padding: 1.35rem 1.6rem 2rem 18rem;
+    padding: 1.35rem 1.6rem 0 18rem;
     font-family: "Salesforce Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     color: #eaf4ff;
     background: radial-gradient(circle at 66% 20%, rgba(23, 91, 137, 0.24), transparent 35%), #061426;
@@ -13,7 +18,7 @@
 .drawer-header lightning-button-icon { --slds-c-icon-color-foreground-default: #dceaf7; }
 .drawer-kicker { color: #64c5ff; font-size: 0.65rem; font-weight: 800; letter-spacing: 0.14em; }
 .drawer-header h2 { margin: 0.2rem 0 0; color: #ffffff; font-size: 1.15rem; }
-.drawer-nav { flex: 1; padding: 1rem 0.75rem; overflow-y: auto; }
+.drawer-nav { flex: 1; padding: 4.1rem 0.75rem 1rem; overflow-y: auto; }
 .drawer-section-label { margin: 0.25rem 0.65rem 0.55rem; color: #7695ad; font-size: 0.65rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
 .drawer-nav-item { width: 100%; display: flex; align-items: center; gap: 0.75rem; min-height: 2.7rem; padding: 0 0.75rem; color: #bcd1e2; background: transparent; border: 0; border-radius: 0.4rem; font: inherit; font-size: 0.8rem; text-align: left; }
 .drawer-nav-item lightning-icon { --slds-c-icon-color-foreground-default: #9bb5ca; }
@@ -246,6 +251,13 @@
     grid-row: 2;
 }
 
+.resource-center-card {
+    align-self: start;
+    height: fit-content;
+    max-height: 34rem;
+    overflow-y: auto;
+}
+
 .map-frame {
     width: 100%;
     height: 260px;
@@ -413,10 +425,46 @@
     color: #16324f;
 }
 
+.allocation-card {
+    grid-column: 3;
+    grid-row: 2;
+    align-self: start;
+    height: fit-content;
+    max-height: 420px;
+    overflow-y: auto;
+}
+
 .allocation-card .card-title,
 .resource-center-card .card-title,
 .shipment-card .card-title {
     color: #16324f;
+}
+
+.allocation-header {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 0.65rem;
+}
+
+.allocation-header .card-title {
+    margin: 0;
+    font-size: 1.05rem;
+    line-height: 1.2;
+}
+
+.allocation-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 2.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    background: #eaf3ff;
+    border-radius: 0.75rem;
+}
+
+.allocation-icon lightning-icon {
+    --slds-c-icon-color-foreground-default: #0b63ce;
 }
 
 .agent-header {
@@ -521,6 +569,11 @@
     color: #5c6670;
 }
 
+.incident-details-toggle {
+    display: block;
+    margin-top: 0.35rem;
+}
+
 .incident-facts {
     display: grid;
     grid-template-columns: auto 1fr;
@@ -623,6 +676,10 @@
     gap: 0.4rem;
 }
 
+.agent-panel .agent-ask {
+    margin-top: 0.45rem;
+}
+
 .agent-ask lightning-input {
     flex-grow: 1;
 }
@@ -636,44 +693,111 @@
 .resource-center-name {
     margin: 0;
     font-weight: 700;
-    font-size: 0.85rem;
+    font-size: 1rem;
+    color: #16324f;
 }
 
 .resource-center-location {
-    margin: 0.1rem 0 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin: 0.2rem 0 0;
     font-size: 0.75rem;
     color: #5c6670;
 }
 
+.resource-center-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    margin-bottom: 0.65rem;
+}
+
+.resource-center-header .card-title {
+    margin: 0 0 0.2rem;
+    font-size: 0.98rem;
+    line-height: 1.2;
+}
+
+.resource-center-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 2rem;
+    width: 2rem;
+    height: 2rem;
+    background: #eaf3ff;
+    border-radius: 0.75rem;
+}
+
+.resource-center-icon lightning-icon { --slds-c-icon-color-foreground-default: #0b63ce; }
+.resource-center-location lightning-icon { --slds-c-icon-color-foreground-default: #64748b; }
+
 .resource-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 0.5rem;
+    gap: 0.4rem;
 }
 
 .resource-item {
-    background: #f6f9fc;
+    background: #fbfdff;
+    border: 1px solid #e4edf5;
     border-radius: 8px;
     padding: 0.5rem;
-    text-align: center;
 }
+
+.resource-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.25rem;
+}
+
+.resource-type-icon {
+    display: grid;
+    place-items: center;
+    width: 1.65rem;
+    height: 1.65rem;
+    border-radius: 0.6rem;
+}
+
+.resource-type-icon lightning-icon { --slds-c-icon-color-foreground-default: #0b63ce; }
+.resource-type-food { background: #dff7ec; }
+.resource-type-water { background: #e4f1ff; }
+.resource-type-shelter { background: #eee9ff; }
+.resource-type-medicine { background: #ffe7e7; }
+.resource-item-header > lightning-icon { --slds-c-icon-color-foreground-default: #64748b; }
 
 .resource-qty {
     margin: 0;
+    color: #0b1645;
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 1.05rem;
 }
 
 .resource-type {
-    margin: 0.1rem 0 0;
-    font-size: 0.7rem;
-    color: #5c6670;
+    margin: 0.05rem 0 0.25rem;
+    font-size: 0.72rem;
+    color: #64748b;
+}
+
+.resource-available { margin: 0; color: #64748b; font-size: 0.7rem; }
+.resource-available strong { color: #0878ee; font-size: 0.72rem; }
+
+.resource-progress-labels {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.4rem;
+    margin-top: 0.2rem;
+    color: #7186a0;
+    font-size: 0.56rem;
 }
 
 .allocation-row {
     display: flex;
     justify-content: space-between;
-    padding: 0.4rem 0;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.5rem 0.4rem;
     border-bottom: 1px solid #f0f2f5;
     font-size: 0.8rem;
 }
@@ -708,12 +832,28 @@
 .allocation-qty {
     color: #5c6670;
 }
-    align-items: flex-start;
+
+.allocation-row:hover {
+    background: #f6f9fc;
+}
 
 .allocation-actions {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr;
     gap: 0.5rem;
     margin-top: 0.75rem;
+}
+
+.allocation-actions lightning-button {
+    width: 100%;
+}
+
+.allocation-card > .empty-state {
+    margin: 0 0 1rem 3.15rem;
+    padding: 0;
+    text-align: left;
+    color: #5c7490;
+    font-size: 0.85rem;
 }
 
 .modify-panel {
@@ -737,10 +877,14 @@
 }
 
 .modify-actions {
-    display: flex;
-    justify-content: flex-end;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.5rem;
     margin-top: 0.6rem;
+}
+
+.modify-actions lightning-button {
+    width: 100%;
 }
 
 
@@ -816,7 +960,7 @@
     .dashboard { padding-left: 14rem; }
     .navigation-drawer { width: 13rem; }
     .main-grid { grid-template-columns: 1fr 1fr; }
-    .map-card, .agent-panel, .recent-incidents, .resource-center-card, .shipment-card { grid-column: auto; grid-row: auto; }
+    .map-card, .agent-panel, .recent-incidents, .resource-center-card, .allocation-card, .shipment-card { grid-column: auto; grid-row: auto; }
 }
 
 @media (max-width: 680px) {
@@ -826,7 +970,7 @@
     .page-header { display: block; }
     .tagline { margin-top: 0.75rem; }
     .metrics-row, .main-grid { grid-template-columns: 1fr; }
-    .map-card, .agent-panel, .recent-incidents, .resource-center-card, .shipment-card { grid-column: auto; grid-row: auto; }
+    .map-card, .agent-panel, .recent-incidents, .resource-center-card, .allocation-card, .shipment-card { grid-column: auto; grid-row: auto; }
     .globe-wrap { height: 20rem; }
 }
 
@@ -859,7 +1003,7 @@
     .next-step { gap: 0.3rem; margin-bottom: 0.12rem; }
     .step-number { width: 0.85rem; height: 0.85rem; font-size: 0.52rem; }
     .view-plan-btn { margin-top: 0.3rem; }
-    .agent-chat { flex-grow: 0; max-height: 0.5rem; min-height: 0; margin-bottom: 0.25rem; }
+    .agent-chat { flex-grow: 0; max-height: 10rem; min-height: 2rem; margin-bottom: 0.25rem; }
     .agent-ask { gap: 0.25rem; }
     .agent-disclaimer { margin-top: 0.2rem; font-size: 0.55rem; }
 }
