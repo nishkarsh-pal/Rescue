@@ -57,6 +57,7 @@ export default class RescueDisasterDashboard extends LightningElement {
     selectedIncidentId;
     selectedWarehouseId;
     showWarehouses = true;
+    globeSeverityFilter = 'All';
     showGlobe = true;
     hoveredIncidentId;
     hoveredWarehouseId;
@@ -331,6 +332,38 @@ export default class RescueDisasterDashboard extends LightningElement {
 
     get warehouseLegendLabel() {
         return 'Show warehouses';
+    }
+
+    get criticalLegendClass() {
+        return this.globeSeverityFilter === 'Critical' ? 'legend-item selected' : 'legend-item';
+    }
+
+    get highLegendClass() {
+        return this.globeSeverityFilter === 'High' ? 'legend-item selected' : 'legend-item';
+    }
+
+    get mediumLegendClass() {
+        return this.globeSeverityFilter === 'Medium' ? 'legend-item selected' : 'legend-item';
+    }
+
+    get lowLegendClass() {
+        return this.globeSeverityFilter === 'Low' ? 'legend-item selected' : 'legend-item';
+    }
+
+    get isCriticalSeveritySelected() {
+        return this.globeSeverityFilter === 'Critical';
+    }
+
+    get isHighSeveritySelected() {
+        return this.globeSeverityFilter === 'High';
+    }
+
+    get isMediumSeveritySelected() {
+        return this.globeSeverityFilter === 'Medium';
+    }
+
+    get isLowSeveritySelected() {
+        return this.globeSeverityFilter === 'Low';
     }
 
     get selectedMarkerValue() {
@@ -634,6 +667,12 @@ export default class RescueDisasterDashboard extends LightningElement {
         this.refreshMarkerHighlight();
     }
 
+    handleSeverityLegendClick(event) {
+        const severity = event.currentTarget.dataset.severity;
+        this.globeSeverityFilter = this.globeSeverityFilter === severity ? 'All' : severity;
+        this.rebuildMarkers();
+    }
+
     handleGlobeZoomIn() {
         this.dollyCamera(0.85);
     }
@@ -770,6 +809,7 @@ export default class RescueDisasterDashboard extends LightningElement {
 
         this.incidents
             .filter((incident) => incident.Latitude__c != null && incident.Longitude__c != null)
+            .filter((incident) => this.globeSeverityFilter === 'All' || incident.Severity__c === this.globeSeverityFilter)
             .forEach((incident) => {
                 const warehouse = this.findNearestWarehouse(incident);
                 if (!warehouse || warehouse.Latitude__c == null || warehouse.Longitude__c == null) {
@@ -796,6 +836,7 @@ export default class RescueDisasterDashboard extends LightningElement {
 
         this.incidents
             .filter((incident) => incident.Latitude__c != null && incident.Longitude__c != null)
+            .filter((incident) => this.globeSeverityFilter === 'All' || incident.Severity__c === this.globeSeverityFilter)
             .forEach((incident) => {
                 const isSelected = incident.Id === this.selectedIncidentId;
                 const position = this.latLonToVector3(incident.Latitude__c, incident.Longitude__c, GLOBE_RADIUS + 1.2);

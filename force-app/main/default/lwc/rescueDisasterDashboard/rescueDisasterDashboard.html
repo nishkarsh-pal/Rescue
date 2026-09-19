@@ -100,10 +100,18 @@
                     <lightning-button label={toggleMapLabel} onclick={handleToggleGlobe}></lightning-button>
                 </div>
                 <div class="map-legend" role="group" aria-label="Map legend">
-                    <div class="legend-item"><span class="legend-icon legend-icon-critical"></span><span>Critical</span></div>
-                    <div class="legend-item"><span class="legend-icon legend-icon-high"></span><span>High</span></div>
-                    <div class="legend-item"><span class="legend-icon legend-icon-medium"></span><span>Medium</span></div>
-                    <div class="legend-item"><span class="legend-icon legend-icon-low"></span><span>Low</span></div>
+                    <button class={criticalLegendClass} type="button" onclick={handleSeverityLegendClick} data-severity="Critical" aria-pressed={isCriticalSeveritySelected}>
+                        <span class="legend-icon legend-icon-critical"></span><span>Critical</span>
+                    </button>
+                    <button class={highLegendClass} type="button" onclick={handleSeverityLegendClick} data-severity="High" aria-pressed={isHighSeveritySelected}>
+                        <span class="legend-icon legend-icon-high"></span><span>High</span>
+                    </button>
+                    <button class={mediumLegendClass} type="button" onclick={handleSeverityLegendClick} data-severity="Medium" aria-pressed={isMediumSeveritySelected}>
+                        <span class="legend-icon legend-icon-medium"></span><span>Medium</span>
+                    </button>
+                    <button class={lowLegendClass} type="button" onclick={handleSeverityLegendClick} data-severity="Low" aria-pressed={isLowSeveritySelected}>
+                        <span class="legend-icon legend-icon-low"></span><span>Low</span>
+                    </button>
                     <button class="legend-item" type="button" onclick={handleShowWarehouses} aria-pressed={showWarehouses}>
                         <span class="legend-icon legend-icon-warehouse"></span>
                         <span>{warehouseLegendLabel}</span>
