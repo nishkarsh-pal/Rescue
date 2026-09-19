@@ -165,6 +165,7 @@ public with sharing class RescueOptimizationService {
 
             shipments.add(new Shipment__c(
                 Allocation__c = allocation.Id,
+                Incident__c = plan.Incident__c,
                 Response_Plan__c = responsePlanId,
                 Origin__c = allocation.Relief_Resource__r.Warehouse__r.Location__c,
                 Destination__c = plan.Incident__r.Location__c,
