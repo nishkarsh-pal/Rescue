@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<BotVersion xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>v2</fullName>
+    <articleAnswersGPTEnabled>false</articleAnswersGPTEnabled>
+    <botDialogs>
+        <botSteps>
+            <botMessages>
+                <message>RESCUE is online. I am ready to coordinate your emergency response. Please provide the incident payload or confirm your incident to begin.</message>
+                <messageIdentifier>4127297b-e8e0-418b-8c28-75a16ac3aa08</messageIdentifier>
+            </botMessages>
+            <stepIdentifier>b8a3da34-ae14-4626-8cc4-b92fe67c98f3</stepIdentifier>
+            <type>Message</type>
+        </botSteps>
+        <botSteps>
+            <stepIdentifier>411403ec-136e-4302-b2aa-a0b442a0c039</stepIdentifier>
+            <type>Wait</type>
+        </botSteps>
+        <developerName>Welcome</developerName>
+        <isPlaceholderDialog>false</isPlaceholderDialog>
+        <label>Welcome</label>
+        <showInFooterMenu>false</showInFooterMenu>
+    </botDialogs>
+    <botDialogs>
+        <botSteps>
+            <botMessages>
+                <message>RESCUE encountered an unexpected error. Please try again or contact your system administrator.</message>
+                <messageIdentifier>5fb98240-026b-46db-ad6c-c5882f5de517</messageIdentifier>
+            </botMessages>
+            <stepIdentifier>eb564245-c446-4f55-a488-43a132d24c9b</stepIdentifier>
+            <type>Message</type>
+        </botSteps>
+        <botSteps>
+            <stepIdentifier>82ce6157-362d-410a-97e8-a3caefcbf502</stepIdentifier>
+            <type>Wait</type>
+        </botSteps>
+        <developerName>Rich_Content_Error_Handling</developerName>
+        <isPlaceholderDialog>false</isPlaceholderDialog>
+        <label>Error Handler</label>
+        <showInFooterMenu>false</showInFooterMenu>
+    </botDialogs>
+    <botDialogs>
+        <botSteps>
+            <conversationSystemMessage>
+                <type>Transfer</type>
+            </conversationSystemMessage>
+            <stepIdentifier>52cd0ac6-a2d2-4413-b113-c092cbd8c490</stepIdentifier>
+            <type>SystemMessage</type>
+        </botSteps>
+        <developerName>Transfer_To_Agent</developerName>
+        <isPlaceholderDialog>false</isPlaceholderDialog>
+        <label>Transfer To Agent</label>
+        <showInFooterMenu>false</showInFooterMenu>
+    </botDialogs>
+    <citationsEnabled>false</citationsEnabled>
+    <conversationDefinitionPlanners>
+        <genAiPlannerName>RESCUE_Incident_Response_Agent_v2</genAiPlannerName>
+    </conversationDefinitionPlanners>
+    <conversationSystemDialogs>
+        <dialog>Rich_Content_Error_Handling</dialog>
+        <type>ErrorHandling</type>
+    </conversationSystemDialogs>
+    <conversationVariables>
+        <dataType>Text</dataType>
+        <description>This variable may also be referred to as VerifiedCustomerId</description>
+        <developerName>VerifiedCustomerId</developerName>
+        <includeInPrompt>false</includeInPrompt>
+        <label>Verified Customer Id</label>
+        <visibility>Internal</visibility>
+    </conversationVariables>
+    <conversationVariables>
+        <dataType>Number</dataType>
+        <description>Longitude coordinate of the incident location. Populated by the RESCUE Initialize Incident action.</description>
+        <developerName>IncidentLongitude</developerName>
+        <includeInPrompt>false</includeInPrompt>
+        <label>Incident Longitude</label>
+        <visibility>Internal</visibility>
+    </conversationVariables>
+    <conversationVariables>
+        <dataType>Text</dataType>
+        <description>Salesforce ID of the created Response_Plan__c record. Populated after an allocation plan is approved and executed.</description>
+        <developerName>ResponsePlanId</developerName>
+        <includeInPrompt>false</includeInPrompt>
+        <label>Response Plan Id</label>
+        <visibility>Internal</visibility>
+    </conversationVariables>
+    <conversationVariables>
+        <dataType>Boolean</dataType>
+        <description>Workflow control flag. Set to True when resource intelligence identifies at least one eligible resource at an operational warehouse with a feasible source.</description>
+        <developerName>FeasibleWarehouseSourceIdentified</developerName>
+        <includeInPrompt>false</includeInPrompt>
+        <label>Feasible Warehouse Source Identified</label>
+        <visibility>Internal</visibility>
+    </conversationVariables>
+    <conversationVariables>
+        <dataType>Text</dataType>
+        <description>Current Emergency_Incident__c record ID. Set by the application before the session starts. Always treat this as the authoritative incident identifier.</description>
+        <developerName>IncidentId</developerName>
+        <includeInPrompt>false</includeInPrompt>
+        <label>Incident Id</label>
+        <visibility>Internal</visibility>
+    </conversationVariables>
+    <conversationVariables>
+        <dataType>Text</dataType>
+        <description>The agent instructions</description>
+        <developerName>AgentScriptInternal_agent_instructions</developerName>
+        <includeInPrompt>false</includeInPrompt>
+        <label>Agent Instructions</label>
+        <visibility>Internal</visibility>
+    </conversationVariables>
+    <conversationVariables>
+        <dataType>Text</dataType>
+        <description>Incident severity level: High, Medium, or Low. Populated by the RESCUE Initialize Incident action.</description>
+        <developerName>IncidentSeverity</developerName>
+        <includeInPrompt>false</includeInPrompt>
+        <label>Incident Severity</label>
+        <visibility>Internal</visibility>
+    </conversationVariables>
+    <conversationVariables>
+        <dataType>Number</dataType>
+        <description>Calculated number of people affected by the incident, derived from explicit evidence in the incident profile only.</description>
+        <developerName>AffectedPopulation</developerName>
+        <includeInPrompt>false</includeInPrompt>
+        <label>Affected Population</label>
+        <visibility>Internal</visibility>
+    </conversationVariables>
+    <conversationVariables>
+        <dataType>Boolean</dataType>
+        <description>Workflow control flag. Set to True after Resource_Request__c records have been successfully created for this incident.</description>
+        <developerName>NeedsAssessmentCompleted</developerName>
+        <includeInPrompt>false</includeInPrompt>
+        <label>Needs Assessment Completed</label>
+        <visibility>Internal</visibility>
+    </conversationVariables>
+    <conversationVariables>
+        <dataType>Text</dataType>
+        <description>Current allocation proposal state: AwaitingApproval, Approved, Modified, or Rejected.</description>
+        <developerName>AllocationProposalStatus</developerName>
+        <includeInPrompt>false</includeInPrompt>
+        <label>Allocation Proposal Status</label>
+        <visibility>Internal</visibility>
+    </conversationVariables>
+    <conversationVariables>
+        <dataType>Boolean</dataType>
+        <description>Workflow control flag. Set to True after available relief resources have been successfully identified for this incident.</description>
+        <developerName>ResourceSearchCompleted</developerName>
+        <includeInPrompt>false</includeInPrompt>
+        <label>Resource Search Completed</label>
+        <visibility>Internal</visibility>
+    </conversationVariables>
+    <conversationVariables>
+        <dataType>Text</dataType>
+        <description>Initial JSON payload supplied by the LWC application containing profile_overview, latitude, longitude, detected_date, incidentId, and severity.</description>
+        <developerName>IncidentPayload</developerName>
+        <includeInPrompt>false</includeInPrompt>
+        <label>Incident Payload</label>
+        <visibility>Internal</visibility>
+    </conversationVariables>
+    <conversationVariables>
+        <dataType>Text</dataType>
+        <description>Complete summary of the current proposed allocation, including allocations, coverage, ETA, risk, unmet needs, and recommendation reasoning.</description>
+        <developerName>AllocationProposalSummary</developerName>
+        <includeInPrompt>false</includeInPrompt>
+        <label>Allocation Proposal Summary</label>
+        <visibility>Internal</visibility>
+    </conversationVariables>
+    <conversationVariables>
+        <dataType>Text</dataType>
+        <description>Session key associated with this incident. Set by the application.</description>
+        <developerName>SessionKey</developerName>
+        <includeInPrompt>false</includeInPrompt>
+        <label>Session Key</label>
+        <visibility>Internal</visibility>
+    </conversationVariables>
+    <conversationVariables>
+        <dataType>Number</dataType>
+        <description>Latitude coordinate of the incident location. Populated by the RESCUE Initialize Incident action.</description>
+        <developerName>IncidentLatitude</developerName>
+        <includeInPrompt>false</includeInPrompt>
+        <label>Incident Latitude</label>
+        <visibility>Internal</visibility>
+    </conversationVariables>
+    <conversationVariables>
+        <dataType>Text</dataType>
+        <description>Current approval status of the allocation plan: Pending, Approved, Modified, or Rejected.</description>
+        <developerName>AllocationApprovalStatus</developerName>
+        <includeInPrompt>false</includeInPrompt>
+        <label>Allocation Approval Status</label>
+        <visibility>Internal</visibility>
+    </conversationVariables>
+    <conversationVariables>
+        <dataType>Text</dataType>
+        <description>Salesforce ID of the current draft Allocation Plan record. Populated by the RESCUE Generate Allocation Plan action.</description>
+        <developerName>AllocationPlanId</developerName>
+        <includeInPrompt>false</includeInPrompt>
+        <label>Allocation Plan Id</label>
+        <visibility>Internal</visibility>
+    </conversationVariables>
+    <conversationVariables>
+        <dataType>Number</dataType>
+        <description>Tracks the current response plan version. Incremented each time a replan is generated and approved.</description>
+        <developerName>PlanVersion</developerName>
+        <includeInPrompt>false</includeInPrompt>
+        <label>Plan Version</label>
+        <visibility>Internal</visibility>
+    </conversationVariables>
+    <conversationVariables>
+        <dataType>Text</dataType>
+        <description>The next topic to be visited</description>
+        <developerName>AgentScriptInternal_next_topic</developerName>
+        <includeInPrompt>false</includeInPrompt>
+        <label>Next Topic</label>
+        <visibility>Internal</visibility>
+    </conversationVariables>
+    <copilotPrimaryLanguage>en_US</copilotPrimaryLanguage>
+    <defaultStdObjForContactIdFltrEnabled>false</defaultStdObjForContactIdFltrEnabled>
+    <entryDialog>Welcome</entryDialog>
+    <intentDisambiguationEnabled>false</intentDisambiguationEnabled>
+    <intentV3Enabled>false</intentV3Enabled>
+    <isScriptCompatibleAgent>true</isScriptCompatibleAgent>
+    <knowledgeActionEnabled>false</knowledgeActionEnabled>
+    <knowledgeFallbackEnabled>false</knowledgeFallbackEnabled>
+    <smallTalkEnabled>false</smallTalkEnabled>
+    <staticPromptsEnabled>false</staticPromptsEnabled>
+    <stopRecPrompts>false</stopRecPrompts>
+    <stopWelcomePrompts>false</stopWelcomePrompts>
+    <surfacesEnabled>false</surfacesEnabled>
+    <toneType>Casual</toneType>
+</BotVersion>

@@ -141,6 +141,20 @@ sf project deploy start --target-org YourDevOrg --metadata ApexClass:ClassName
 
 This repository intentionally contains no CI/CD workflow or automated deployment.
 
+### Agentforce Dashboard Integration
+
+The dashboard's Agentforce chat uses the `Agentforce_Integration__mdt` record
+named `Default`. Before using the chat, replace `REPLACE_WITH_CLIENT_ID` and
+`REPLACE_WITH_CLIENT_SECRET` in
+`force-app/main/default/customMetadata/Agentforce_Integration.Default.md-meta.xml`
+with the external client application's values. The record also contains the
+Agent API, token, instance, and agent identifiers used by Apex.
+
+The client secret is intentionally not included in this repository. For
+production deployments, prefer a Named Credential or External Credential so
+the secret is stored in Salesforce's encrypted credential store rather than
+custom metadata.
+
 ## Run Tests
 
 Run Apex tests in the target org:

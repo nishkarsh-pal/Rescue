@@ -1,6 +1,7 @@
 public with sharing class RescueCommandCenterController {
     public class DashboardData {
         @AuraEnabled public List<Emergency_Incident__c> incidents;
+        @AuraEnabled public List<Warehouse__c> warehouses;
         @AuraEnabled public List<Resource_Request__c> requests;
         @AuraEnabled public List<Relief_Resource__c> resources;
         @AuraEnabled public List<Response_Plan__c> plans;
@@ -17,8 +18,12 @@ public with sharing class RescueCommandCenterController {
             SELECT Id, Name, Severity__c, Location__c, Country__c, Disaster_Type__c, Source__c, Latitude__c, Longitude__c,
                    Population_Affected__c, Status__c, Start_Date__c, Detected_Date__c, Situation_Summary__c, Profile_Overview__c
             FROM Emergency_Incident__c
-            ORDER BY CreatedDate DESC
-            LIMIT 20
+            ORDER BY Detected_Date__c DESC
+        ];
+        data.warehouses = [
+            SELECT Id, Name, Location__c, Latitude__c, Longitude__c, Status__c, Operating_Capacity__c
+            FROM Warehouse__c
+            ORDER BY Name
         ];
         data.requests = [
             SELECT Id, Name, Incident__c, Resource_Type__c, Quantity__c, Priority__c, Required_By__c, Status__c
@@ -27,10 +32,9 @@ public with sharing class RescueCommandCenterController {
             LIMIT 50
         ];
         data.resources = [
-            SELECT Id, Name, Resource_Type__c, Quantity_Available__c, Warehouse__c, Warehouse__r.Name, Warehouse__r.Location__c, Status__c, Expiration_Date__c
+            SELECT Id, Name, Resource_Type__c, Quantity_Available__c, Available_To_Allocate__c, Warehouse__c, Warehouse__r.Name, Warehouse__r.Location__c, Status__c, Expiration_Date__c
             FROM Relief_Resource__c
             ORDER BY Quantity_Available__c DESC
-            LIMIT 50
         ];
         data.plans = [
             SELECT Id, Name, Incident__c, Plan_Version__c, Total_Resources__c, Estimated_Coverage__c, Estimated_ETA_Hours__c, Risk_Score__c, Confidence__c, Approval_Status__c, AI_Recommendation__c, CreatedDate
@@ -48,7 +52,7 @@ public with sharing class RescueCommandCenterController {
             LIMIT 100
         ];
         data.shipments = [
-            SELECT Id, Name, Response_Plan__c, Origin__c, Destination__c, Carrier__c, Route__c, ETA__c, Status__c
+            SELECT Id, Name, Response_Plan__c, Origin__c, Destination__c, Origin_Latitude__c, Origin_Longitude__c, Destination_Latitude__c, Destination_Longitude__c, Carrier__c, Route__c, ETA__c, Status__c
             FROM Shipment__c
             ORDER BY CreatedDate DESC
             LIMIT 30
@@ -130,8 +134,8 @@ public with sharing class RescueCommandCenterController {
             return;
         }
 
-        Warehouse__c north = new Warehouse__c(Name = 'Warehouse North', Location__c = 'North Regional Hub', Status__c = 'Operational', Operating_Capacity__c = 92);
-        Warehouse__c east = new Warehouse__c(Name = 'Warehouse East', Location__c = 'East Regional Hub', Status__c = 'Operational', Operating_Capacity__c = 88);
+        Warehouse__c north = new Warehouse__c(Name = 'Warehouse North', Location__c = 'North Regional Hub', Latitude__c = 40.7128, Longitude__c = -74.0060, Status__c = 'Operational', Operating_Capacity__c = 92);
+        Warehouse__c east = new Warehouse__c(Name = 'Warehouse East', Location__c = 'East Regional Hub', Latitude__c = 34.0522, Longitude__c = -118.2437, Status__c = 'Operational', Operating_Capacity__c = 88);
         insert new List<Warehouse__c>{ north, east };
 
         insert new List<Relief_Resource__c>{

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RemoteSiteSetting xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Salesforce_Agent_Token</fullName>
+    <description>OAuth token endpoint used by RescueAgentConsoleController.</description>
+    <disableProtocolSecurity>false</disableProtocolSecurity>
+    <isActive>true</isActive>
+    <url>https://orgfarm-5cd6bc8368-dev-ed.develop.my.salesforce.com</url>
+</RemoteSiteSetting>

@@ -181,6 +181,46 @@
     margin: 0;
 }
 
+.map-legend {
+    display: flex;
+    gap: 0.8rem;
+    margin: -0.1rem 0 0.6rem;
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 0;
+    background: transparent;
+    color: #3e4d5b;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.75rem;
+    padding: 0.15rem 0;
+}
+
+.legend-item:hover {
+    color: #0176d3;
+}
+
+.legend-icon {
+    display: inline-block;
+    width: 0.7rem;
+    height: 0.7rem;
+}
+
+.legend-icon-incident {
+    background: #ff4d4f;
+    border-radius: 50%;
+}
+
+.legend-icon-warehouse {
+    background: #36d399;
+    border-radius: 2px;
+    transform: rotate(45deg) scale(0.8);
+}
+
 .globe-wrap {
     position: relative;
     display: flex;
@@ -302,6 +342,32 @@
     margin-bottom: 0.75rem;
 }
 
+.agent-loading {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0 0 0.75rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid #d8e6f3;
+    border-radius: 8px;
+    background: #f5f9fd;
+    color: #0176d3;
+    font-size: 0.75rem;
+}
+
+.agent-loading-dot {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background: #0176d3;
+    animation: agent-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes agent-pulse {
+    0%, 100% { opacity: 0.35; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1); }
+}
+
 .incident-card {
     border: 1px solid #f3d4cf;
     background: #fff8f7;
@@ -366,8 +432,18 @@
 }
 
 .step-complete {
+    background: #2e844a;
+    color: #fff;
+}
+
+.step-active {
     background: #0176d3;
     color: #fff;
+}
+
+.step-pending {
+    background: #f0f2f5;
+    color: #5c6670;
 }
 
 .view-plan-btn {
@@ -383,6 +459,9 @@
     margin-bottom: 0.5rem;
     max-height: 160px;
     overflow-y: auto;
+    width: 100%;
+    min-height: 2rem;
+    scroll-behavior: smooth;
 }
 
 .agent-chat .agent {
@@ -467,12 +546,132 @@
     font-weight: 600;
 }
 
+.resource-available {
+    margin: 0.2rem 0 0;
+    color: #0176d3;
+    font-size: 0.65rem;
+}
+
+.resource-progress-track {
+    width: 100%;
+    height: 0.3rem;
+    margin-top: 0.25rem;
+    overflow: hidden;
+    border-radius: 4px;
+    background: #e5e9ed;
+}
+
+.resource-progress-fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: #2e844a;
+    transition: width 0.3s ease;
+}
+
 .allocation-qty {
     color: #5c6670;
 }
+    align-items: flex-start;
 
 .allocation-actions {
     display: flex;
     gap: 0.5rem;
     margin-top: 0.75rem;
+}
+
+.modify-panel {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid #d8e6f3;
+    border-radius: 8px;
+    background: #f5f9fd;
+}
+
+.modify-panel-heading {
+    color: #16324f;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.modify-panel-help {
+    margin: 0.25rem 0 0.55rem;
+    color: #5c6670;
+    font-size: 0.72rem;
+}
+
+.modify-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+}
+
+
+.allocation-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.allocation-resource,
+.allocation-source,
+.allocation-status {
+    color: #5c6670;
+    font-size: 0.72rem;
+}
+
+.allocation-source {
+    color: #0176d3;
+}
+
+.shipment-card {
+    grid-column: span 2;
+}
+
+.shipment-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid #f0f2f5;
+}
+
+.shipment-main,
+.shipment-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.shipment-meta {
+    align-items: flex-end;
+    white-space: nowrap;
+}
+
+.shipment-name {
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+
+.shipment-route,
+.shipment-carrier,
+.shipment-eta,
+.shipment-status {
+    color: #5c6670;
+    font-size: 0.72rem;
+}
+
+.shipment-status {
+    color: #0176d3;
+    font-weight: 600;
+}
+
+.allocation-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.15rem;
+    white-space: nowrap;
 }

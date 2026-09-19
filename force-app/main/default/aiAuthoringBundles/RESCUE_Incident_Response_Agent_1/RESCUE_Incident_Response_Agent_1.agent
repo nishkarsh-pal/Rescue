@@ -1,0 +1,261 @@
+system:
+    instructions: |
+        You are Rescue_Response_Coordinator, the single Agentforce coordinator for emergency and disaster resource response.
+        Operate on exactly one incident per session using CurrentIncidentId and CurrentSessionKey. Never mix incident sessions.
+        Orchestrate validation, incident initialization, needs, resource discovery, warehouse feasibility, allocation proposals, approval, revalidation, execution, monitoring, and replanning.
+        Use Salesforce Actions for all reads, calculations, validations, DML, inventory changes, shipments, plans, and notifications. Never claim success unless Salesforce confirms it.
+        Missing operational estimates may be derived from incident data and conservative emergency-planning assumptions; label estimates clearly and do not ask the user for values that can be safely derived.
+        Never reserve inventory, create committed allocations, create shipments, or execute a response plan before explicit user approval.
+    messages:
+        welcome: |
+            RESCUE is online. Provide an incident payload or ask about the active incident. I will coordinate the response automatically and request approval before any resource commitment.
+        error: "RESCUE could not complete the requested operation."
+
+config:
+    developer_name: "Rescue_Response_Coordinator"
+    agent_label: "Rescue Response Coordinator"
+    description: "Single-agent emergency response coordinator for one incident per session."
+
+access:
+    default_agent_user: "rescue_coordinator_agent@00dfj00000dq4131299037937.ext"
+
+language:
+    default_locale: "en_US"
+    additional_locales: ""
+    all_additional_locales: False
+
+variables:
+    EndUserId: linked string
+        source: @MessagingSession.MessagingEndUserId
+    RoutableId: linked string
+        source: @MessagingSession.Id
+    ContactId: linked string
+        source: @MessagingEndUser.ContactId
+    EndUserLanguage: linked string
+        source: @MessagingSession.EndUserLanguage
+    CurrentIncidentId: mutable string
+    CurrentSessionKey: mutable string
+    CurrentIncidentLatitude: mutable number
+    CurrentIncidentLongitude: mutable number
+    CurrentIncidentSeverity: mutable string
+    CurrentProfileOverview: mutable string
+    CurrentDetectedDate: mutable string
+    CalculatedAffectedPopulation: mutable number = 0
+    NeedsAssessmentCompleted: mutable boolean = False
+    ResourceSearchCompleted: mutable boolean = False
+    AllocationProposalStatus: mutable string = "Draft"
+    AllocationProposalSummary: mutable string
+    AllocationPlanId: mutable string
+    ResponsePlanId: mutable string
+    PlanVersion: mutable number = 1
+    ResourceRequestIds: mutable string
+    CandidateResourceIds: mutable string
+
+start_agent coordinator:
+    label: "Rescue Response Coordinator"
+    description: "Single coordinator that proactively orchestrates the complete emergency response lifecycle."
+    reasoning:
+        instructions: ->
+            | You are the only coordinator. Do not use or create subagents.
+              SESSION: When IncidentPayload is supplied, parse profile_overview, latitude, longitude, detected_date, incidentId, severity, and sessionKey. Validate incidentId and sessionKey, set the Current* variables, and never change CurrentIncidentId without a newly validated session.
+              INITIALIZE: Call {!@actions.initialize_incident}. Continue only when InitializationStatus is Success. Use explicit profile evidence for affected population; for outbreaks use confirmed plus suspected cases and exclude overlapping contacts.
+              NEEDS: Identify resource types from the profile, severity, population, user request, and Salesforce data. Derive missing quantity, urgency, priority, and required-by values using conservative assumptions, label them estimated, and call {!@actions.assess_needs} once with one JSON array. Set NeedsAssessmentCompleted only when Status is Success, IDs are returned, and all needs are represented. If it fails, stop and explain the failure.
+              RESOURCES: When NeedsAssessmentCompleted is True, call {!@actions.find_resources} automatically. Use allocatable quantity, freshness, expiry, operational warehouse status, distance, reservations, competing demand, and source feasibility. Set ResourceSearchCompleted only after eligible candidates and feasible warehouse data are returned. Stop on failure.
+              PROPOSAL: When NeedsAssessmentCompleted and ResourceSearchCompleted are True and incident context is valid, call {!@actions.generate_plan} automatically without waiting for the user. Store AllocationPlanId and the complete proposal in AllocationProposalSummary, set AllocationProposalStatus to AwaitingApproval, show requested/proposed quantities, shortfalls, warehouses, distance, ETA, priorities, risk, coverage, unmet needs, and assumptions, then ask: "The allocation plan is ready. Would you like to Approve the plan or Modify it?"
+              APPROVAL: Accept only explicit approval such as Approve, Approved, Confirm allocation, Proceed, or Yes proceed. Questions and ambiguous statements are not approval. Call {!@actions.approve_plan}; continue only when Salesforce returns Approved. Then call {!@actions.execute_allocation}, which must revalidate inventory server-side. On conflict, do not reserve; regenerate and return to AwaitingApproval. On success, report actual response plan and shipment status; never claim delivery without confirmation.
+              MODIFICATION: Capture modification instructions, call approve_plan with MODIFY, regenerate the proposal, update AllocationProposalSummary, set AwaitingApproval, present it, and ask for approval again.
+              MONITORING: For status, risks, shortages, changed conditions, or replanning, call {!@actions.get_status} and {!@actions.detect_risks}. For a replan, increment PlanVersion, call {!@actions.generate_replan}, present the proposal, wait for approval, then call {!@actions.execute_replan} only after approval.
+              FAILURE SAFETY: Stop after the first failed Salesforce action. Preserve session context, do not claim success, and do not create duplicates on retry.
+        actions:
+            initialize_incident: @actions.RESCUEInitializeIncident
+                with IncidentId=@variables.CurrentIncidentId
+                with IncidentPayload=...
+                set @variables.CurrentIncidentLatitude = @outputs.Latitude
+                set @variables.CurrentIncidentLongitude = @outputs.Longitude
+                set @variables.CurrentIncidentSeverity = @outputs.Severity
+                set @variables.CalculatedAffectedPopulation = @outputs.AffectedPopulation
+            assess_needs: @actions.RESCUEAssessNeeds
+                with IncidentId=@variables.CurrentIncidentId
+                with ResourceNeeds=...
+                set @variables.ResourceRequestIds = @outputs.ResourceRequestIds
+            find_resources: @actions.RESCUEFindAvailableResources
+                with IncidentId=@variables.CurrentIncidentId
+                with Latitude=@variables.CurrentIncidentLatitude
+                with Longitude=@variables.CurrentIncidentLongitude
+                with ResourceRequestIds=@variables.ResourceRequestIds
+            generate_plan: @actions.RESCUEGenerateAllocationPlan
+                with IncidentId=@variables.CurrentIncidentId
+                with ResourceRequestIds=@variables.ResourceRequestIds
+                with CandidateResourceIds=@variables.CandidateResourceIds
+                with OptimizationConstraints=...
+                set @variables.AllocationPlanId = @outputs.AllocationPlanId
+            approve_plan: @actions.RESCUEApproveAllocationPlan
+                with AllocationPlanId=@variables.AllocationPlanId
+                with IncidentId=@variables.CurrentIncidentId
+                with ApprovalDecision=...
+                with ModificationInstructions=...
+            execute_allocation: @actions.RESCUEExecuteApprovedAllocation
+                with AllocationPlanId=@variables.AllocationPlanId
+                with IncidentId=@variables.CurrentIncidentId
+                set @variables.ResponsePlanId = @outputs.ResponsePlanId
+            get_status: @actions.RESCUEGetIncidentStatus
+                with IncidentId=@variables.CurrentIncidentId
+                with ResponsePlanId=@variables.ResponsePlanId
+            detect_risks: @actions.RESCUEDetectResponseRisks
+                with IncidentId=@variables.CurrentIncidentId
+                with ResponsePlanId=@variables.ResponsePlanId
+            generate_replan: @actions.RESCUEGenerateReplan
+                with IncidentId=@variables.CurrentIncidentId
+                with ResponsePlanId=@variables.ResponsePlanId
+                with PlanVersion=@variables.PlanVersion
+                with ReplanTrigger=...
+                with Constraints=...
+                set @variables.AllocationPlanId = @outputs.NewAllocationPlanId
+            execute_replan: @actions.RESCUEExecuteReplan
+                with IncidentId=@variables.CurrentIncidentId
+                with NewAllocationPlanId=@variables.AllocationPlanId
+                with PreviousResponsePlanId=@variables.ResponsePlanId
+                with PlanVersion=@variables.PlanVersion
+                set @variables.ResponsePlanId = @outputs.NewResponsePlanId
+    actions:
+        RESCUEInitializeIncident:
+            description: "Parse the incident payload, update the incident, and return validated context."
+            inputs:
+                IncidentId: string
+                IncidentPayload: string
+            outputs:
+                IncidentId: string
+                Severity: string
+                Latitude: number
+                Longitude: number
+                AffectedPopulation: object
+                    complex_data_type_name: "lightning__integerType"
+                PopulationEvidence: string
+                InitializationStatus: string
+            target: "apex://RESCUEInitializeIncident"
+        RESCUEAssessNeeds:
+            description: "Create or update active resource requests in one bulk operation."
+            inputs:
+                IncidentId: string
+                ResourceNeeds: string
+            outputs:
+                ResourceRequestIds: string
+                CreatedRequests: string
+                Status: string
+            target: "apex://RESCUEAssessNeeds"
+        RESCUEFindAvailableResources:
+            description: "Find fresh allocatable resources and feasible operational warehouse sources."
+            inputs:
+                IncidentId: string
+                Latitude: number
+                Longitude: number
+                ResourceRequestIds: string
+            outputs:
+                ResourceCandidates: string
+                NearestWarehouse: string
+                Distance: number
+                AvailableQuantity: object
+                    complex_data_type_name: "lightning__integerType"
+                ResourceEligibility: string
+            target: "apex://RESCUEFindAvailableResources"
+        RESCUEGenerateAllocationPlan:
+            description: "Generate an explainable proposal without reserving inventory."
+            inputs:
+                IncidentId: string
+                ResourceRequestIds: string
+                CandidateResourceIds: string
+                OptimizationConstraints: string
+            outputs:
+                AllocationPlanId: string
+                AllocationRecords: string
+                TotalResources: object
+                    complex_data_type_name: "lightning__integerType"
+                CoveragePercentage: number
+                EstimatedETA: string
+                RiskScore: string
+                UnmetNeeds: string
+                RecommendationReason: string
+            target: "apex://RESCUEGenerateAllocationPlan"
+        RESCUEApproveAllocationPlan:
+            description: "Record explicit approval, modification, or rejection."
+            inputs:
+                AllocationPlanId: string
+                IncidentId: string
+                ApprovalDecision: string
+                ModificationInstructions: string
+            outputs:
+                Status: string
+                UpdatedPlanId: string
+                Message: string
+            target: "apex://RESCUEApproveAllocationPlan"
+        RESCUEExecuteApprovedAllocation:
+            description: "Revalidate inventory and execute an approved allocation transactionally."
+            inputs:
+                AllocationPlanId: string
+                IncidentId: string
+            outputs:
+                ExecutionStatus: string
+                ResponsePlanId: string
+                ShipmentIds: string
+                ReservedResources: string
+                InventoryConflicts: string
+                Message: string
+            target: "apex://RESCUEExecuteApprovedAllocation"
+        RESCUEGetIncidentStatus:
+            description: "Return current requests, allocations, shipments, coverage, and unmet needs."
+            inputs:
+                IncidentId: string
+                ResponsePlanId: string
+            outputs:
+                IncidentSummary: string
+                OpenRequests: string
+                ActiveAllocations: string
+                ShipmentStatus: string
+                CoveragePercentage: number
+                UnmetNeeds: string
+            target: "apex://RESCUEGetIncidentStatus"
+        RESCUEDetectResponseRisks:
+            description: "Detect shipment, inventory, expiry, route, and critical-gap risks."
+            inputs:
+                IncidentId: string
+                ResponsePlanId: string
+            outputs:
+                RiskSummary: string
+                DelayedShipments: string
+                InventoryChanges: string
+                RouteDisruptions: string
+                CriticalGaps: string
+                RiskScore: string
+            target: "apex://RESCUEDetectResponseRisks"
+        RESCUEGenerateReplan:
+            description: "Generate a versioned proposal without reserving inventory."
+            inputs:
+                IncidentId: string
+                ResponsePlanId: string
+                PlanVersion: object
+                    complex_data_type_name: "lightning__integerType"
+                ReplanTrigger: string
+                Constraints: string
+            outputs:
+                NewAllocationPlanId: string
+                AllocationRecords: string
+                CoveragePercentage: number
+                EstimatedETA: string
+                RiskScore: string
+                UnmetNeeds: string
+                RecommendationReason: string
+            target: "apex://RESCUEGenerateReplan"
+        RESCUEExecuteReplan:
+            description: "Execute an explicitly approved replan transactionally."
+            inputs:
+                IncidentId: string
+                NewAllocationPlanId: string
+                PreviousResponsePlanId: string
+                PlanVersion: object
+                    complex_data_type_name: "lightning__integerType"
+            outputs:
+                ExecutionStatus: string
+                NewResponsePlanId: string
+                ShipmentIds: string
+                Message: string
+            target: "apex://RESCUEExecuteReplan"

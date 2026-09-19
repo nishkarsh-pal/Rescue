@@ -45,6 +45,11 @@
                 <default>false</default>
                 <label>Rejected</label>
             </value>
+            <value>
+                <fullName>Superseded</fullName>
+                <default>false</default>
+                <label>Superseded</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>

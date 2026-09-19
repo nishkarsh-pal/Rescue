@@ -3,6 +3,12 @@
     <flexiPageRegions>
         <itemInstances>
             <componentInstance>
+                <componentName>rescueDisasterDashboard</componentName>
+                <identifier>c_rescueDisasterDashboard</identifier>
+            </componentInstance>
+        </itemInstances>
+        <itemInstances>
+            <componentInstance>
                 <componentName>rescueCommandCenter</componentName>
                 <identifier>c_rescueCommandCenter</identifier>
             </componentInstance>

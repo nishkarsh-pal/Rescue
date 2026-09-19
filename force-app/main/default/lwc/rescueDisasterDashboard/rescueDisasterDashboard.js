@@ -5,9 +5,8 @@ import { publish, subscribe, unsubscribe, MessageContext } from 'lightning/messa
 import RESCUE_INCIDENT_CHANNEL from '@salesforce/messageChannel/RescueIncidentChannel__c';
 import RESCUE_THREE_GLOBE from '@salesforce/resourceUrl/RescueThreeGlobe';
 import getDashboardData from '@salesforce/apex/RescueCommandCenterController.getDashboardData';
-import approvePlan from '@salesforce/apex/RescueCommandCenterController.approvePlan';
-import generatePlan from '@salesforce/apex/RescueCommandCenterController.generatePlan';
-import sendCommand from '@salesforce/apex/RescueAgentConsoleController.sendCommand';
+import startAgentSession from '@salesforce/apex/RescueAgentConsoleController.startAgentSession';
+import sendAgentMessage from '@salesforce/apex/RescueAgentConsoleController.sendAgentMessage';
 
 const SOURCE = 'rescueDisasterDashboard';
 const STAGE_ORDER = ['Detected', 'Understanding', 'Prioritized', 'Simulating', 'Recommended', 'Pending Approval', 'Allocating', 'Executing', 'Monitoring', 'Replanning'];
@@ -24,14 +23,27 @@ const NEXT_STEPS = [
 
 export default class RescueDisasterDashboard extends LightningElement {
     wiredResult;
-    data = { incidents: [], requests: [], resources: [], plans: [], allocations: [], shipments: [], decisions: [], evaluations: [] };
+    data = { incidents: [], requests: [], resources: [], plans: [], allocationPlans: [], allocations: [], shipments: [], decisions: [], evaluations: [] };
     isLoading = false;
     errorMessage;
     askText = '';
     chatMessages = [];
+    agentLoading = false;
+    isModifyMode = false;
+    modificationText = '';
+    priorityMessageVisible = false;
+    proposalReady = false;
+    proposalApproved = false;
+    chatScrollPending = false;
+    agentSessionKeys = {};
+    agentSessions = {};
+    agentSessionPromises = {};
     selectedIncidentId;
+    selectedWarehouseId;
+    showWarehouses = true;
     showGlobe = false;
     hoveredIncidentId;
+    hoveredWarehouseId;
     globeLoadError;
 
     subscription;
@@ -61,13 +73,25 @@ export default class RescueDisasterDashboard extends LightningElement {
         if (this.showGlobe && !this.threeInitialized) {
             this.initGlobe();
         }
+        if (this.chatScrollPending) {
+            this.chatScrollPending = false;
+            const chat = this.template.querySelector('.agent-chat');
+            if (chat) chat.scrollTop = chat.scrollHeight;
+        }
     }
 
     handleIncidentMessage(message) {
         if (message.source !== SOURCE && message.incidentId !== this.selectedIncidentId) {
             this.selectedIncidentId = message.incidentId;
+            this.selectedWarehouseId = undefined;
             this.chatMessages = [];
+            this.isModifyMode = false;
+            this.modificationText = '';
+            this.priorityMessageVisible = false;
+            this.proposalReady = false;
             this.refreshMarkerHighlight();
+            this.focusGlobeOnIncident();
+            this.initializeIncidentAgentIfNeeded(message.incidentId);
         }
     }
 
@@ -76,22 +100,30 @@ export default class RescueDisasterDashboard extends LightningElement {
         this.wiredResult = result;
         if (result.data) {
             this.data = result.data;
+            (result.data.incidents || []).forEach((incident) => this.ensureAgentSessionKey(incident.Id));
+            this.restoreIncidentWorkflowState();
             if (!this.selectedIncidentId && result.data.incidents && result.data.incidents.length) {
                 this.selectedIncidentId = this.defaultIncidentId(result.data.incidents);
+                this.restoreIncidentWorkflowState();
+                this.initializeIncidentAgentIfNeeded(this.selectedIncidentId);
             }
             if (this.threeInitialized) {
                 this.rebuildMarkers();
+                this.focusGlobeOnIncident();
             }
         }
     }
 
     defaultIncidentId(incidents) {
-        const critical = incidents.find((incident) => incident.Severity__c === 'Critical');
-        return (critical || incidents[0]).Id;
+        return incidents[0].Id;
     }
 
     get incidents() {
         return this.data.incidents || [];
+    }
+
+    get warehouses() {
+        return this.data.warehouses || [];
     }
 
     get hasIncidents() {
@@ -137,14 +169,68 @@ export default class RescueDisasterDashboard extends LightningElement {
     }
 
     get mapMarkers() {
-        return this.incidents
+        const incidentMarkers = this.incidents
             .filter((incident) => incident.Latitude__c != null && incident.Longitude__c != null)
             .map((incident) => ({
                 value: incident.Id,
                 location: { Latitude: incident.Latitude__c, Longitude: incident.Longitude__c },
                 title: incident.Name,
-                description: (incident.Location__c || incident.Country__c || '') + ' — ' + (incident.Severity__c || '')
+                description: (incident.Location__c || incident.Country__c || '') + ' — ' + (incident.Severity__c || ''),
+                icon: 'standard:event'
             }));
+        const warehouseMarkers = this.showWarehouses
+            ? this.warehouses
+                .filter((warehouse) => warehouse.Latitude__c != null && warehouse.Longitude__c != null)
+                .map((warehouse) => ({
+                    value: this.warehouseMarkerValue(warehouse.Id),
+                    location: { Latitude: warehouse.Latitude__c, Longitude: warehouse.Longitude__c },
+                    title: warehouse.Name,
+                    description: (warehouse.Location__c || '') + ' — Warehouse (' + (warehouse.Status__c || 'Available') + ')',
+                    icon: 'custom:custom26'
+                }))
+            : [];
+        const shipmentMarkers = this.shipments.flatMap((shipment) => {
+            const markers = [];
+            if (shipment.Origin_Latitude__c != null && shipment.Origin_Longitude__c != null) {
+                markers.push({
+                    value: shipment.Id + '-origin',
+                    location: { Latitude: shipment.Origin_Latitude__c, Longitude: shipment.Origin_Longitude__c },
+                    title: shipment.Name + ' origin',
+                    description: 'Shipment origin: ' + (shipment.Origin__c || '') + ' — ' + (shipment.Status__c || 'Planned'),
+                    icon: 'standard:shipment'
+                });
+            }
+            if (shipment.Destination_Latitude__c != null && shipment.Destination_Longitude__c != null) {
+                markers.push({
+                    value: shipment.Id + '-destination',
+                    location: { Latitude: shipment.Destination_Latitude__c, Longitude: shipment.Destination_Longitude__c },
+                    title: shipment.Name + ' destination',
+                    description: 'Shipment destination: ' + (shipment.Destination__c || '') + ' — ETA ' + this.formatShipmentEta(shipment.ETA__c),
+                    icon: 'standard:location'
+                });
+            }
+            return markers;
+        });
+        return incidentMarkers.concat(warehouseMarkers, shipmentMarkers);
+    }
+
+    get shipments() {
+        const plan = this.topPlan;
+        const shipments = plan
+            ? (this.data.shipments || []).filter((shipment) => shipment.Response_Plan__c === plan.Id)
+            : [];
+        return shipments.map((shipment) => ({
+            ...shipment,
+            etaLabel: this.formatShipmentEta(shipment.ETA__c)
+        }));
+    }
+
+    get hasShipments() {
+        return this.shipments.length > 0;
+    }
+
+    formatShipmentEta(value) {
+        return value ? new Date(value).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Pending';
     }
 
     get hasMapMarkers() {
@@ -167,18 +253,47 @@ export default class RescueDisasterDashboard extends LightningElement {
         return this.showGlobe ? 'Map View' : 'Globe View';
     }
 
+    get warehouseLegendLabel() {
+        return 'Show warehouses';
+    }
+
+    get selectedMarkerValue() {
+        return this.selectedWarehouseId ? this.warehouseMarkerValue(this.selectedWarehouseId) : this.selectedIncidentId;
+    }
+
     get globeDetailIncident() {
         const incidentId = this.hoveredIncidentId || this.selectedIncidentId;
         return this.incidents.find((incident) => incident.Id === incidentId);
     }
 
+    get globeDetailWarehouse() {
+        return this.warehouses.find((warehouse) => warehouse.Id === this.hoveredWarehouseId);
+    }
+
     get hasGlobeDetail() {
-        return this.showGlobe && !!this.globeDetailIncident;
+        return this.showGlobe && !!(this.globeDetailIncident || this.globeDetailWarehouse);
+    }
+
+    get globeDetailName() {
+        return this.globeDetailWarehouse ? this.globeDetailWarehouse.Name : this.globeDetailIncident.Name;
     }
 
     get globeDetailSubtitle() {
+        if (this.globeDetailWarehouse) {
+            return [this.globeDetailWarehouse.Location__c, 'Warehouse'].filter(Boolean).join(' — ');
+        }
         const incident = this.globeDetailIncident;
         return incident ? [incident.Disaster_Type__c, incident.Location__c || incident.Country__c].filter(Boolean).join(' — ') : '';
+    }
+
+    get globeDetailPrimaryFact() {
+        return this.globeDetailWarehouse ? this.globeDetailWarehouse.Status__c : this.globeDetailIncident.Severity__c;
+    }
+
+    get globeDetailSecondaryFact() {
+        return this.globeDetailWarehouse
+            ? 'Capacity ' + (this.globeDetailWarehouse.Operating_Capacity__c || 0) + '%'
+            : this.globeDetailIncident.Status__c;
     }
 
     get topIncident() {
@@ -203,13 +318,23 @@ export default class RescueDisasterDashboard extends LightningElement {
     }
 
     get nextSteps() {
-        const incident = this.topIncident;
-        const currentStatus = incident ? incident.Status__c : null;
-        const currentIndex = STAGE_ORDER.indexOf(currentStatus);
+        const plan = this.topPlan;
+        const planGenerated = !!plan;
+        const planApproved = !!plan && plan.Approval_Status__c === 'Approved';
+        const shipments = plan
+            ? (this.data.shipments || []).filter((shipment) => shipment.Response_Plan__c === plan.Id)
+            : [];
+        const shipmentsDelivered = shipments.length > 0 && shipments.every((shipment) => shipment.Status__c === 'Delivered');
+        const complete = [planGenerated, planGenerated, planApproved, shipmentsDelivered];
+        const activeIndex = complete.findIndex((isComplete) => !isComplete);
         return NEXT_STEPS.map((step, index) => ({
             key: step.key,
             label: step.label,
-            numberClass: index <= currentIndex ? 'step-number step-complete' : 'step-number',
+            numberClass: complete[index]
+                ? 'step-number step-complete'
+                : index === activeIndex
+                    ? 'step-number step-active'
+                    : 'step-number step-pending',
             number: index + 1
         }));
     }
@@ -219,28 +344,92 @@ export default class RescueDisasterDashboard extends LightningElement {
     }
 
     get approveDisabled() {
-        return !this.canApproveTopPlan;
+        return !this.topIncident || this.agentLoading || !this.proposalReady || this.proposalApproved;
+    }
+
+    restoreIncidentWorkflowState() {
+        const incident = this.topIncident;
+        if (!incident) {
+            this.proposalReady = false;
+            this.proposalApproved = false;
+            return;
+        }
+        const incidentAllocations = (this.data.allocations || []).filter((allocation) => allocation.Incident__c === incident.Id);
+        const responsePlans = (this.data.plans || []).filter((plan) => plan.Incident__c === incident.Id);
+        this.proposalReady = incidentAllocations.length > 0 || responsePlans.length > 0;
+        this.proposalApproved = responsePlans.some((plan) => plan.Approval_Status__c === 'Approved')
+            || incidentAllocations.some((allocation) => ['Approved', 'Allocated', 'In Transit', 'Executing'].includes(allocation.Status__c));
+    }
+
+    hasExistingAllocationPlan(incidentId) {
+        return (this.data.allocationPlans || []).some((plan) => plan.Incident__c === incidentId)
+            || (this.data.allocations || []).some((allocation) => allocation.Incident__c === incidentId);
+    }
+
+    initializeIncidentAgentIfNeeded(incidentId) {
+        if (!this.hasExistingAllocationPlan(incidentId)) {
+            this.initializeIncidentAgent(incidentId);
+        }
     }
 
     get nearestResourceCenter() {
         const resources = this.data.resources || [];
-        if (!resources.length) {
+        const incident = this.topIncident;
+        if (!incident || !this.warehouses.length) {
             return null;
         }
-        const warehouseId = resources[0].Warehouse__c;
-        const warehouseName = resources[0].Warehouse__r ? resources[0].Warehouse__r.Name : 'Resource Center';
-        const warehouseLocation = resources[0].Warehouse__r ? resources[0].Warehouse__r.Location__c : '';
-        const forWarehouse = resources.filter((resource) => resource.Warehouse__c === warehouseId);
+        const warehouse = this.findNearestWarehouse(incident);
+        if (!warehouse) {
+            return null;
+        }
+        const forWarehouse = resources.filter((resource) => resource.Warehouse__c === warehouse.Id);
 
         return {
-            name: warehouseName,
-            location: warehouseLocation,
+            name: warehouse.Name,
+            location: warehouse.Location__c,
             breakdown: forWarehouse.map((resource) => ({
                 id: resource.Id,
                 type: resource.Resource_Type__c,
-                quantity: resource.Quantity_Available__c
+                quantity: resource.Quantity_Available__c,
+                availableToAllocate: resource.Available_To_Allocate__c || 0,
+                availabilityPercent: resource.Quantity_Available__c ? Math.min(100, Math.round((resource.Available_To_Allocate__c || 0) / resource.Quantity_Available__c * 100)) : 0
             }))
         };
+    }
+
+    findNearestWarehouse(incident) {
+        if (incident.Latitude__c == null || incident.Longitude__c == null) {
+            return null;
+        }
+        return this.warehouses
+            .filter((warehouse) => warehouse.Latitude__c != null && warehouse.Longitude__c != null)
+            .map((warehouse) => ({
+                warehouse,
+                distance: this.distanceBetweenCoordinates(
+                    incident.Latitude__c,
+                    incident.Longitude__c,
+                    warehouse.Latitude__c,
+                    warehouse.Longitude__c
+                )
+            }))
+            .sort((first, second) => first.distance - second.distance)
+            .map((entry) => entry.warehouse)[0];
+    }
+
+    distanceBetweenCoordinates(firstLatitude, firstLongitude, secondLatitude, secondLongitude) {
+        const earthRadiusKm = 6371;
+        const latitudeDelta = this.toRadians(secondLatitude - firstLatitude);
+        const longitudeDelta = this.toRadians(secondLongitude - firstLongitude);
+        const firstLatitudeRadians = this.toRadians(firstLatitude);
+        const secondLatitudeRadians = this.toRadians(secondLatitude);
+        const haversine = Math.sin(latitudeDelta / 2) * Math.sin(latitudeDelta / 2)
+            + Math.cos(firstLatitudeRadians) * Math.cos(secondLatitudeRadians)
+            * Math.sin(longitudeDelta / 2) * Math.sin(longitudeDelta / 2);
+        return earthRadiusKm * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+    }
+
+    toRadians(degrees) {
+        return degrees * Math.PI / 180;
     }
 
     get hasNearestResourceCenter() {
@@ -254,21 +443,43 @@ export default class RescueDisasterDashboard extends LightningElement {
         }
         const requests = (this.data.requests || []).filter((request) => request.Incident__c === incident.Id);
         const allocations = this.data.allocations || [];
-        return requests.map((request) => {
-            const allocatedQty = allocations
-                .filter((allocation) => allocation.Resource_Request__c === request.Id)
-                .reduce((sum, allocation) => sum + (allocation.Quantity__c || 0), 0);
-            return {
-                id: request.Id,
-                type: request.Resource_Type__c,
-                allocatedQty,
-                requestedQty: request.Quantity__c || 0
-            };
-        });
+        const incidentAllocations = allocations.filter((allocation) => allocation.Incident__c === incident.Id);
+        if (incidentAllocations.length) {
+            return incidentAllocations.map((allocation) => ({
+                id: allocation.Id,
+                type: allocation.Resource_Request__r ? allocation.Resource_Request__r.Resource_Type__c : 'Resource',
+                resourceName: allocation.Relief_Resource__r ? allocation.Relief_Resource__r.Name : 'Resource unavailable',
+                warehouseName: allocation.Relief_Resource__r && allocation.Relief_Resource__r.Warehouse__r
+                    ? allocation.Relief_Resource__r.Warehouse__r.Name
+                    : 'Warehouse unavailable',
+                warehouseLocation: allocation.Relief_Resource__r && allocation.Relief_Resource__r.Warehouse__r
+                    ? allocation.Relief_Resource__r.Warehouse__r.Location__c
+                    : '',
+                allocatedQty: allocation.Quantity__c || 0,
+                requestedQty: this.requestedQuantityForAllocation(allocation, requests),
+                status: allocation.Status__c || 'Proposed'
+            }));
+        }
+        return [];
+    }
+
+    requestedQuantityForAllocation(allocation, requests) {
+        const request = requests.find((item) => item.Id === allocation.Resource_Request__c);
+        return request ? request.Quantity__c || 0 : 0;
     }
 
     get hasAllocationBreakdown() {
         return this.allocationBreakdown.length > 0;
+    }
+
+    get hasAllocationProposal() {
+        const incident = this.topIncident;
+        if (!incident) {
+            return false;
+        }
+        const hasAllocations = (this.data.allocations || []).some((allocation) => allocation.Incident__c === incident.Id);
+        const hasApprovedResponsePlan = (this.data.plans || []).some((plan) => plan.Incident__c === incident.Id && plan.Approval_Status__c === 'Approved');
+        return hasAllocations || hasApprovedResponsePlan;
     }
 
     formatTime(value) {
@@ -284,8 +495,15 @@ export default class RescueDisasterDashboard extends LightningElement {
             return;
         }
         this.selectedIncidentId = incidentId;
+        this.selectedWarehouseId = undefined;
         this.chatMessages = [];
+        this.isModifyMode = false;
+        this.modificationText = '';
+        this.priorityMessageVisible = false;
+        this.restoreIncidentWorkflowState();
         this.refreshMarkerHighlight();
+        this.focusGlobeOnIncident();
+        this.initializeIncidentAgentIfNeeded(incidentId);
         publish(this.messageContext, RESCUE_INCIDENT_CHANNEL, { incidentId, source: SOURCE });
     }
 
@@ -295,6 +513,11 @@ export default class RescueDisasterDashboard extends LightningElement {
             this.teardownGlobe();
             this.threeInitialized = false;
         }
+    }
+
+    handleShowWarehouses() {
+        this.showWarehouses = true;
+        this.refreshMarkerHighlight();
     }
 
     handleGlobeZoomIn() {
@@ -365,13 +588,47 @@ export default class RescueDisasterDashboard extends LightningElement {
         this.markerGroup = new THREE.Group();
         this.scene.add(this.markerGroup);
         this.rebuildMarkers();
+        this.focusGlobeOnIncident();
 
         this.raycaster = new THREE.Raycaster();
         this.pointer = new THREE.Vector2();
         this.renderer.domElement.addEventListener('click', (event) => this.handleCanvasClick(event));
         this.renderer.domElement.addEventListener('mousemove', (event) => this.handleCanvasHover(event));
 
+        if (window.ResizeObserver) {
+            this.resizeObserver = new window.ResizeObserver(() => this.resizeGlobe(container));
+            this.resizeObserver.observe(container);
+        }
+
         this.startRenderLoop();
+    }
+
+    focusGlobeOnIncident() {
+        const incident = this.topIncident;
+        if (!incident || incident.Latitude__c == null || incident.Longitude__c == null || !this.earthMesh || !this.markerGroup || !window.THREE) {
+            return;
+        }
+        const THREE = window.THREE;
+        const incidentPoint = this.latLonToVector3(incident.Latitude__c, incident.Longitude__c, 1).normalize();
+        const cameraDirection = new THREE.Vector3(0, 0, 1);
+        const focusRotation = new THREE.Quaternion().setFromUnitVectors(incidentPoint, cameraDirection);
+        this.earthMesh.quaternion.copy(focusRotation);
+        this.markerGroup.quaternion.copy(focusRotation);
+        if (this.controls) {
+            this.controls.target.set(0, 0, 0);
+            this.controls.update();
+        }
+    }
+
+    resizeGlobe(container) {
+        if (!this.renderer || !this.camera) {
+            return;
+        }
+        const width = container.clientWidth || 300;
+        const height = container.clientHeight || 260;
+        this.camera.aspect = width / height;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(width, height);
     }
 
     rebuildMarkers() {
@@ -392,9 +649,26 @@ export default class RescueDisasterDashboard extends LightningElement {
                 const marker = new THREE.Mesh(geometry, material);
                 marker.position.copy(position);
                 marker.userData.incidentId = incident.Id;
+                marker.userData.markerType = 'incident';
                 this.markerGroup.add(marker);
                 this.markerMeshes.push(marker);
             });
+
+        if (this.showWarehouses) {
+            this.warehouses
+                .filter((warehouse) => warehouse.Latitude__c != null && warehouse.Longitude__c != null)
+                .forEach((warehouse) => {
+                    const position = this.latLonToVector3(warehouse.Latitude__c, warehouse.Longitude__c, GLOBE_RADIUS + 1.8);
+                    const geometry = new THREE.ConeGeometry(2.2, 5, 8);
+                    const material = new THREE.MeshBasicMaterial({ color: 0x36d399 });
+                    const marker = new THREE.Mesh(geometry, material);
+                    marker.position.copy(position);
+                    marker.userData.warehouseId = warehouse.Id;
+                    marker.userData.markerType = 'warehouse';
+                    this.markerGroup.add(marker);
+                    this.markerMeshes.push(marker);
+                });
+        }
     }
 
     refreshMarkerHighlight() {
@@ -427,17 +701,31 @@ export default class RescueDisasterDashboard extends LightningElement {
     }
 
     handleCanvasClick(event) {
-        const incidentId = this.pickIncidentAt(event);
+        const marker = this.pickIncidentAt(event);
+        if (marker && marker.markerType === 'warehouse') {
+            this.hoveredWarehouseId = marker.id;
+            this.hoveredIncidentId = undefined;
+            return;
+        }
+        const incidentId = marker && marker.id;
         if (incidentId && incidentId !== this.selectedIncidentId) {
             this.selectedIncidentId = incidentId;
+            this.selectedWarehouseId = undefined;
+            this.hoveredWarehouseId = undefined;
             this.chatMessages = [];
+            this.priorityMessageVisible = false;
+            this.restoreIncidentWorkflowState();
             this.rebuildMarkers();
+            this.focusGlobeOnIncident();
+            this.initializeIncidentAgentIfNeeded(incidentId);
             publish(this.messageContext, RESCUE_INCIDENT_CHANNEL, { incidentId, source: SOURCE });
         }
     }
 
     handleCanvasHover(event) {
-        this.hoveredIncidentId = this.pickIncidentAt(event);
+        const marker = this.pickIncidentAt(event);
+        this.hoveredIncidentId = marker && marker.markerType === 'incident' ? marker.id : undefined;
+        this.hoveredWarehouseId = marker && marker.markerType === 'warehouse' ? marker.id : undefined;
     }
 
     pickIncidentAt(event) {
@@ -449,7 +737,33 @@ export default class RescueDisasterDashboard extends LightningElement {
         this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
         this.raycaster.setFromCamera(this.pointer, this.camera);
         const intersections = this.raycaster.intersectObjects(this.markerMeshes);
-        return intersections.length ? intersections[0].object.userData.incidentId : undefined;
+        if (!intersections.length) {
+            return undefined;
+        }
+        const marker = intersections[0].object.userData;
+        return { markerType: marker.markerType, id: marker.markerType === 'warehouse' ? marker.warehouseId : marker.incidentId };
+    }
+
+    warehouseMarkerValue(warehouseId) {
+        return 'warehouse-' + warehouseId;
+    }
+
+    handleMapMarkerSelect(event) {
+        const markerValue = event.detail.selectedMarkerValue;
+        if (markerValue && markerValue.indexOf('warehouse-') === 0) {
+            this.selectedWarehouseId = markerValue.substring('warehouse-'.length);
+            return;
+        }
+        if (markerValue) {
+            this.selectedIncidentId = markerValue;
+            this.selectedWarehouseId = undefined;
+            this.chatMessages = [];
+            this.priorityMessageVisible = false;
+            this.proposalReady = false;
+            this.focusGlobeOnIncident();
+            this.initializeIncidentAgentIfNeeded(markerValue);
+            publish(this.messageContext, RESCUE_INCIDENT_CHANNEL, { incidentId: markerValue, source: SOURCE });
+        }
     }
 
     teardownGlobe() {
@@ -466,6 +780,10 @@ export default class RescueDisasterDashboard extends LightningElement {
             this.renderer.domElement.remove();
             this.renderer = undefined;
         }
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+            this.resizeObserver = undefined;
+        }
         this.scene = undefined;
         this.camera = undefined;
         this.markerMeshes = [];
@@ -475,55 +793,190 @@ export default class RescueDisasterDashboard extends LightningElement {
         this.askText = event.target.value;
     }
 
+    handleModificationChange(event) {
+        this.modificationText = event.target.value;
+    }
+
+    handleCancelModification() {
+        this.isModifyMode = false;
+        this.modificationText = '';
+    }
+
     async handleAsk() {
         const question = (this.askText || '').trim();
         const incident = this.topIncident;
-        if (!question || !incident) {
+        if (!question || !incident || this.agentLoading) {
             return;
         }
         this.chatMessages = [...this.chatMessages, { id: Date.now() + '-user', from: 'user', text: question }];
         this.askText = '';
+        this.agentLoading = true;
 
         try {
-            const result = await sendCommand({ incidentId: incident.Id, message: question });
+            const session = await this.ensureAgentSession(incident.Id);
+            const message = this.buildAgentFollowUpMessage(question);
+            console.log('Agent follow-up payload:', message);
+            const result = await this.sendMessageToAgent(session, message);
             this.chatMessages = [...this.chatMessages, { id: Date.now() + '-agent', from: 'agent', text: result.reply }];
-            if (result.actionTaken === 'Allocated and executed' || result.actionTaken === 'Recommended') {
-                await refreshApex(this.wiredResult);
-            }
         } catch (error) {
             this.chatMessages = [...this.chatMessages, { id: Date.now() + '-error', from: 'agent', text: this.extractError(error) }];
+        } finally {
+            this.agentLoading = false;
         }
+    }
+
+    buildAgentFollowUpMessage(question) {
+        const normalized = question.toLowerCase();
+        const approval = /\b(approve|approved|confirm|confirmed|authorize|authorise|proceed|yes\s*proceed)\b/.test(normalized);
+        const modification = /\b(modify|modified|change|adjust|replan|alter)\b/.test(normalized);
+        if (approval) {
+            return JSON.stringify({ action: 'Approve', message: question });
+        }
+        if (modification) {
+            return JSON.stringify({ action: 'Modify', message: question });
+        }
+        return question;
+    }
+
+    async initializeIncidentAgent(incidentId) {
+        const incident = this.incidents.find((item) => item.Id === incidentId);
+        if (!incident || this.agentSessions[incidentId] || this.agentSessionPromises[incidentId]) {
+            return;
+        }
+        const incidentPayload = {
+            incidentId: incident.Id,
+            sessionKey: this.ensureAgentSessionKey(incidentId),
+            severity: incident.Severity__c || '',
+            profile_overview: incident.Profile_Overview__c || '',
+            latitude: incident.Latitude__c,
+            longitude: incident.Longitude__c,
+            detected_date: incident.Detected_Date__c || ''
+        };
+        const incidentMessage = JSON.stringify(incidentPayload);
+        console.log('Agent incident payload:', incidentMessage);
+        this.agentLoading = true;
+        const initialization = this.ensureAgentSession(incidentId)
+            .then((session) => this.sendMessageToAgent(session, incidentMessage))
+            .then(async (result) => {
+                await refreshApex(this.wiredResult);
+                if (this.selectedIncidentId === incidentId) {
+                    const welcome = this.agentSessions[incidentId].welcomeMessage;
+                    this.chatMessages = [
+                        ...(welcome ? [{ id: Date.now() + '-welcome', from: 'agent', text: welcome }] : []),
+                        { id: Date.now() + '-agent', from: 'agent', text: result.reply }
+                    ];
+                    this.proposalReady = true;
+                }
+            })
+            .catch((error) => {
+                if (this.selectedIncidentId === incidentId) {
+                    this.chatMessages = [{ id: Date.now() + '-error', from: 'agent', text: this.extractError(error) }];
+                }
+            })
+            .finally(() => {
+                const promises = { ...this.agentSessionPromises };
+                delete promises[incidentId];
+                this.agentSessionPromises = promises;
+                this.agentLoading = false;
+            });
+        this.agentSessionPromises = { ...this.agentSessionPromises, [incidentId]: initialization };
+    }
+
+    async sendMessageToAgent(session, message) {
+        const result = await sendAgentMessage({
+            sessionId: session.sessionId,
+            sequenceId: session.nextSequence,
+            message
+        });
+        session.nextSequence += 1;
+        return result;
+    }
+
+    ensureAgentSessionKey(incidentId) {
+        if (!this.agentSessionKeys[incidentId]) {
+            this.agentSessionKeys = {
+                ...this.agentSessionKeys,
+                [incidentId]: this.createUuid()
+            };
+        }
+        return this.agentSessionKeys[incidentId];
+    }
+
+    createUuid() {
+        if (window.crypto && window.crypto.randomUUID) {
+            return window.crypto.randomUUID();
+        }
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (character) => {
+            const random = Math.random() * 16 | 0;
+            const value = character === 'x' ? random : (random & 0x3 | 0x8);
+            return value.toString(16);
+        });
+    }
+
+    async ensureAgentSession(incidentId) {
+        if (this.agentSessions[incidentId]) {
+            return this.agentSessions[incidentId];
+        }
+        const session = await startAgentSession({ externalSessionKey: this.ensureAgentSessionKey(incidentId) });
+        const storedSession = { ...session, nextSequence: 1, welcomeShown: false };
+        this.agentSessions = { ...this.agentSessions, [incidentId]: storedSession };
+        return storedSession;
     }
 
     async handleApprove() {
-        if (!this.topPlan) {
+        const incident = this.topIncident;
+        if (!incident || this.approveDisabled) {
             return;
         }
-        this.isLoading = true;
+        const payload = JSON.stringify({ action: 'Approve', message: 'Approve the displayed allocation plan.' });
+        this.agentLoading = true;
         this.errorMessage = undefined;
         try {
-            await approvePlan({ responsePlanId: this.topPlan.Id });
+            const session = await this.ensureAgentSession(incident.Id);
+            console.log('Agent approval payload:', payload);
+            const result = await this.sendMessageToAgent(session, payload);
+            this.chatMessages = [...this.chatMessages, { id: Date.now() + '-agent', from: 'agent', text: result.reply }];
+            this.proposalApproved = true;
+            this.chatScrollPending = true;
             await refreshApex(this.wiredResult);
         } catch (error) {
             this.errorMessage = this.extractError(error);
         } finally {
-            this.isLoading = false;
+            this.agentLoading = false;
         }
     }
 
-    async handleModifyPlan() {
-        if (!this.topIncident) {
+    handleModifyPlan() {
+        if (!this.topIncident || this.agentLoading) {
             return;
         }
-        this.isLoading = true;
-        this.errorMessage = undefined;
+        this.isModifyMode = true;
+        this.proposalApproved = false;
+    }
+
+    async handleSubmitModification() {
+        const instruction = (this.modificationText || '').trim();
+        const incident = this.topIncident;
+        if (!instruction || !incident || this.agentLoading) {
+            return;
+        }
+        const payload = JSON.stringify({ action: 'Modify', message: instruction });
+        this.isModifyMode = false;
+        this.modificationText = '';
+        this.agentLoading = true;
+        console.log('Agent modification payload:', payload);
         try {
-            await generatePlan({ incidentId: this.topIncident.Id });
+            const session = await this.ensureAgentSession(incident.Id);
+            const result = await this.sendMessageToAgent(session, payload);
             await refreshApex(this.wiredResult);
+            this.chatMessages = [...this.chatMessages, { id: Date.now() + '-agent', from: 'agent', text: result.reply }];
+            this.proposalReady = true;
+            this.proposalApproved = false;
+            this.chatScrollPending = true;
         } catch (error) {
-            this.errorMessage = this.extractError(error);
+            this.chatMessages = [...this.chatMessages, { id: Date.now() + '-error', from: 'agent', text: this.extractError(error) }];
         } finally {
-            this.isLoading = false;
+            this.agentLoading = false;
         }
     }
 
