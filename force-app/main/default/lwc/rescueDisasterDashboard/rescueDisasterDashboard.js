@@ -12,6 +12,7 @@ const SOURCE = 'rescueDisasterDashboard';
 const STAGE_ORDER = ['Detected', 'Understanding', 'Prioritized', 'Simulating', 'Recommended', 'Pending Approval', 'Allocating', 'Executing', 'Monitoring', 'Replanning'];
 const GLOBE_RADIUS = 50;
 const DEFAULT_GLOBE_DISTANCE = 124;
+const INCIDENT_FOCUS_DISTANCE = 82;
 const MIN_ZOOM_DISTANCE = 70;
 const MAX_ZOOM_DISTANCE = 220;
 
@@ -43,6 +44,7 @@ export default class RescueDisasterDashboard extends LightningElement {
     chatMessages = [];
     agentLoading = false;
     incidentDetailsExpanded = false;
+    severityFilter = 'All';
     isModifyMode = false;
     modificationText = '';
     priorityMessageVisible = false;
@@ -147,8 +149,26 @@ export default class RescueDisasterDashboard extends LightningElement {
         return this.incidents.length > 0;
     }
 
+    get severityOptions() {
+        return [
+            { label: 'All severities', value: 'All' },
+            { label: 'Critical', value: 'Critical' },
+            { label: 'High', value: 'High' },
+            { label: 'Medium', value: 'Medium' },
+            { label: 'Low', value: 'Low' }
+        ];
+    }
+
+    get hasFilteredRecentIncidents() {
+        return this.recentIncidents.length > 0;
+    }
+
     get incidentDetailsToggleLabel() {
         return this.incidentDetailsExpanded ? 'Hide incident details' : 'Show incident details';
+    }
+
+    get incidentCardClass() {
+        return this.incidentDetailsExpanded ? 'incident-card incident-card-expanded' : 'incident-card';
     }
 
     get navigationItems() {
@@ -372,14 +392,31 @@ export default class RescueDisasterDashboard extends LightningElement {
     }
 
     get nextSteps() {
+        const incident = this.topIncident;
         const plan = this.topPlan;
-        const planGenerated = !!plan;
-        const planApproved = !!plan && plan.Approval_Status__c === 'Approved';
+        // Allocation_Plan__c/Allocation__c are proposed before any Response_Plan__c exists, so the recommendation and
+        // logistics steps must be driven from the live allocation data, not just from a (possibly nonexistent) plan.
+        const incidentAllocations = incident
+            ? (this.data.allocations || []).filter((allocation) => allocation.Incident__c === incident.Id)
+            : [];
+        const incidentRequests = incident
+            ? (this.data.requests || []).filter((request) => request.Incident__c === incident.Id)
+            : [];
+        const hasProposal = !!plan || incidentAllocations.length > 0;
+        const requestsFullyAllocated = incidentRequests.length > 0 && incidentRequests.every((request) => {
+            const allocatedQty = incidentAllocations
+                .filter((allocation) => allocation.Resource_Request__c === request.Id)
+                .reduce((sum, allocation) => sum + (allocation.Quantity__c || 0), 0);
+            return allocatedQty >= (request.Quantity__c || 0);
+        });
+        const planApproved = (!!plan && plan.Approval_Status__c === 'Approved')
+            || incidentAllocations.some((allocation) => ['Approved', 'Allocated', 'Executing', 'In Transit'].includes(allocation.Status__c));
         const shipments = plan
             ? (this.data.shipments || []).filter((shipment) => shipment.Response_Plan__c === plan.Id)
             : [];
         const shipmentsDelivered = shipments.length > 0 && shipments.every((shipment) => shipment.Status__c === 'Delivered');
-        const complete = [planGenerated, planGenerated, planApproved, shipmentsDelivered];
+        // Approve & Dispatch is a single action, so a fully covered proposal advances straight to step 4.
+        const complete = [hasProposal, hasProposal, requestsFullyAllocated || planApproved, shipmentsDelivered];
         const activeIndex = complete.findIndex((isComplete) => !isComplete);
         return NEXT_STEPS.map((step, index) => ({
             key: step.key,
@@ -580,6 +617,10 @@ export default class RescueDisasterDashboard extends LightningElement {
         this.focusGlobeOnIncident();
         this.initializeIncidentAgentIfNeeded(incidentId);
         publish(this.messageContext, RESCUE_INCIDENT_CHANNEL, { incidentId, source: SOURCE });
+    }
+
+    handleSeverityFilterChange(event) {
+        this.severityFilter = event.detail.value;
     }
 
     handleNavigationToggle() {
@@ -1008,7 +1049,7 @@ export default class RescueDisasterDashboard extends LightningElement {
                         ...(welcome ? [{ id: Date.now() + '-welcome', from: 'agent', text: welcome }] : []),
                         { id: Date.now() + '-agent', from: 'agent', text: result.reply }
                     ];
-                    this.proposalReady = true;
+                    this.restoreIncidentWorkflowState();
                 }
             })
             .catch((error) => {
@@ -1079,9 +1120,9 @@ export default class RescueDisasterDashboard extends LightningElement {
             console.log('Agent approval payload:', payload);
             const result = await this.sendMessageToAgent(session, payload);
             this.chatMessages = [...this.chatMessages, { id: Date.now() + '-agent', from: 'agent', text: result.reply }];
-            this.proposalApproved = true;
             this.chatScrollPending = true;
             await refreshApex(this.wiredResult);
+            this.restoreIncidentWorkflowState();
         } catch (error) {
             this.errorMessage = this.extractError(error);
         } finally {
@@ -1113,8 +1154,7 @@ export default class RescueDisasterDashboard extends LightningElement {
             const result = await this.sendMessageToAgent(session, payload);
             await refreshApex(this.wiredResult);
             this.chatMessages = [...this.chatMessages, { id: Date.now() + '-agent', from: 'agent', text: result.reply }];
-            this.proposalReady = true;
-            this.proposalApproved = false;
+            this.restoreIncidentWorkflowState();
             this.chatScrollPending = true;
         } catch (error) {
             this.chatMessages = [...this.chatMessages, { id: Date.now() + '-error', from: 'agent', text: this.extractError(error) }];
